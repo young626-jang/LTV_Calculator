@@ -237,65 +237,65 @@ for item in items:
         valid_items.append(item)
 
 def calculate_ltv(total_value, deduction, senior_principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
- 만약 _senior:
- 극한 = int(총_값 * (ltv / 100) - 공제)
- 사용 가능 = int(limit - 시니어_principal_sum)
- 그렇지 않으면:
- 극한 = int(총_값 * (ltv / 100)) - main_maxamt_sum - 공제
- 사용 가능 = int(limit - 시니어_principal_sum)
+    if is_senior:
+        limit = int(total_value * (ltv / 100) - deduction)
+        available = int(limit - senior_principal_sum)
+    else:
+        limit = int(total_value * (ltv / 100) - maintain_maxamt_sum - deduction)
+        available = int(limit - senior_principal_sum)
     # 10만 단위로 반올림
- 극한 = (limit // 10) * 10
- 사용 가능 = (사용 가능 // 10) * 10
- 반품 한도, 사용 가능
+    limit = (limit // 10) * 10
+    available = (available // 10) * 10
+    return limit, available
 
-has_maintain = any(항목 ["진행구분"] == 항목 내 항목에 대한 "유지")
-has_senior = any(항목 내 항목에 대해 ["대환", "선말소"]에서 항목 ["진행구분"])
+has_maintain = any(item["진행구분"] == "유지" for item in items)
+has_senior = any(item["진행구분"] in ["대환", "선말소"] for item in items)
 
-limit_senior =avail_senior =limit_sub = avail_sub = 0
+limit_senior = avail_senior = limit_sub = avail_sub = 0
 
-ltv_selected에서 ltv:
+for ltv in ltv_selected:
     # 선순위 LTV: "유지"가 없을 때만
- has_senior이고 has_maintain가 아닌 경우:
- limit_senior, avail_senior = calculate_ltv(
- 총_값, 공제, 시니어_principal_합, 0, ltv, is_senior=True
+    if has_senior and not has_maintain:
+        limit_senior, avail_senior = calculate_ltv(
+            total_value, deduction, senior_principal_sum, 0, ltv, is_senior=True
         )
- limit_senior = 바닥_to_unit(limit_senior)
- avail_senior = floor_to_unit(avail_senior)
+        limit_senior = floor_to_unit(limit_senior)
+        avail_senior = floor_to_unit(avail_senior)
     # 후순위 LTV: "유지"가 있을 때만
- 만약 has_maintain:
- main_maxamt_sum = sum(
- int(re.sub(r "[^\\d]), ", "item.get ("채권최고액", "") 또는 "0")
- 항목 ["진행구분"] == "유지"인 경우 항목의 항목에 대해
+    if has_maintain:
+        maintain_maxamt_sum = sum(
+            int(re.sub(r"[^\d]", "", item.get("채권최고액", "") or "0"))
+            for item in items if item["진행구분"] == "유지"
         )
- limit_sub, avail_sub = calculate_ltv(
- 총_값, 공제, 시니어_principal_합, 유지_maxamt_합, ltv, is_senior=false
+        limit_sub, avail_sub = calculate_ltv(
+            total_value, deduction, senior_principal_sum, maintain_maxamt_sum, ltv, is_senior=False
         )
- limit_sub = 바닥_to_unit (limit_sub)
- avail_sub = floor_to_unit(avail_sub)
+        limit_sub = floor_to_unit(limit_sub)
+        avail_sub = floor_to_unit(avail_sub)
 
 # ----------- 결과내용 조립/출력 -----------
-f"고객명: 
+text_to_copy = f"고객명: {owner_number}\n주소: {address_input}\n"
 
-type_of_price = "📉 하안가" (floor_num 및 floor_num <= 2 다른 경우 "📈 일반가")
-text_to_copy += f"{type_of_price} | KB 시세: {raw_price_input} 만 | 전용면적: {area_input} | 방공제 금액: {deduction:,}만\n"
+type_of_price = "📉 하안가" if floor_num and floor_num <= 2 else "📈 일반가"
+text_to_copy += f"{type_of_price} | KB시세: {raw_price_input}만 | 전용면적: {area_input} | 방공제 금액: {deduction:,}만\n"
 
-유효한 경우_items:
- text_to_copy += "\n📋 대출 항목\n"
- 유효한_items 항목에 대해:
- max_amt = int(re.sub(r "[^\\d]), "", item.get ("채권최고액", "") 또는 "0")
- principal_amt = int(re.sub(r "[^\\d]), "", item.get ("원금", "") 또는 "0")
- text_to_copy += f"{item['설정자']} | 채권최고액: {max_amt:,} | 비율: {item.get('설정비율', '0')}% | 원금: {principal_amt:,} | {item['진행구분']}\n"
+if valid_items:
+    text_to_copy += "\n📋 대출 항목\n"
+    for item in valid_items:
+        max_amt = int(re.sub(r"[^\d]", "", item.get("채권최고액", "") or "0"))
+        principal_amt = int(re.sub(r"[^\d]", "", item.get("원금", "") or "0"))
+        text_to_copy += f"{item['설정자']} | 채권최고액: {max_amt:,} | 비율: {item.get('설정비율', '0')}% | 원금: {principal_amt:,} | {item['진행구분']}\n"
 
-ltv_selected에서 ltv:
- has_senior이고 has_maintain가 아닌 경우:
- 텍스트_to_copy += f"\n✅ 선순위 LTV {ltv}% ☞ 대출가능금액 {limit_senior:,} 가용 {avail_senior:,}"
- 만약 has_maintain:
- text_to_copy += f"\n✅ 후순위 LTV {ltv}% ☞ 대출가능금액 {limit_sub:,} 가용 {avail_sub:,}"
+for ltv in ltv_selected:
+    if has_senior and not has_maintain:
+        text_to_copy += f"\n✅ 선순위 LTV {ltv}% ☞ 대출가능금액 {limit_senior:,} 가용 {avail_senior:,}"
+    if has_maintain:
+        text_to_copy += f"\n✅ 후순위 LTV {ltv}% ☞ 대출가능금액 {limit_sub:,} 가용 {avail_sub:,}"
 
 text_to_copy += "\n[진행구분별 원금 합계]\n"
-sum_dh > 0인 경우:
- text_to_copy += f"대환: {sum_dh:,}만\n"
-sum_sm > 0인 경우:
- text_to_copy += f"선말소: {sum_sm:,}만\n"
+if sum_dh > 0:
+    text_to_copy += f"대환: {sum_dh:,}만\n"
+if sum_sm > 0:
+    text_to_copy += f"선말소: {sum_sm:,}만\n"
 
-st.text_area ("📋 결과 내용", 값=text_to_copy, 높이=300)
+st.text_area("📋 결과 내용", value=text_to_copy, height=300)
