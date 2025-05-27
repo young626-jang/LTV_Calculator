@@ -23,43 +23,43 @@ def process_pdf(path):
     doc = fitz.open(path)
     text = "".join([p.get_text() for p in doc])
     doc.close()
- 주소 = extract_address_from_text(텍스트)
- st.session_state["extracted_주소"] = 주소
- st.success(f")PDF 에서 주소 추출: {주소}}"
+    address = extract_address_from_text(text)
+    st.session_state["extracted_address"] = address
+    st.success(f"PDF에서 주소 추출: {address}")
 
 # 등기명/주소/면적 추출 함수
-def_owner_number_from_text(텍스트):
- 시도:
- 선 = text.split 선 ()
- i의 경우, enumerate(line)에 줄을 세웁니다:
- "등록번호"가 일렬로 있는 경우:
- line4 = line[i + 4].i + 4 < 렌(라인)이 아닌 경우 스트립 ()"
- line5 = line[i + 5].i + 5 < 렌(라인)인 경우 스트립 ()"
- 결합 = f"{line4} {line5}"스트립 ()
- 결합된 경우 반환합니다.strip () else"
-        돌아가다 ""
- 예외:
-        돌아가다 ""
+def extract_owner_number_from_text(text):
+    try:
+        lines = text.splitlines()
+        for i, line in enumerate(lines):
+            if "등록번호" in line:
+                line4 = lines[i + 4].strip() if i + 4 < len(lines) else ""
+                line5 = lines[i + 5].strip() if i + 5 < len(lines) else ""
+                combined = f"{line4} {line5}".strip()
+                return combined if combined.strip() else ""
+        return ""
+    except Exception:
+        return ""
 
-def_extract_address_area_floor_from_text(텍스트):
- 시도:
- 주소 = re.search(r"\\[집합건물\\]\s*([^\n]+)), 텍스트)
- extracted_address = address.group(1).strip ()(다른 주소일 경우)"
- area_match = re.findall(r(\\d+\\.\d+)\\s*㎡), 텍스트)
- 추출된_면적 = f"{area_match[-1]}㎡", 면적_match가 다른 경우"
- floor_match = re.findall(r"제(\\d+)층", extracted_address)
- floor_num = int(floor_match[-1]), floor_match가 다른 경우 없음
- return extracted_address, extracted_area, floor_num
- 단:
- "",", "", 없음"을 반환합니다
+def extract_address_area_floor_from_text(text):
+    try:
+        address = re.search(r"\[집합건물\]\s*([^\n]+)", text)
+        extracted_address = address.group(1).strip() if address else ""
+        area_match = re.findall(r"(\d+\.\d+)\s*㎡", text)
+        extracted_area = f"{area_match[-1]}㎡" if area_match else ""
+        floor_match = re.findall(r"제(\d+)층", extracted_address)
+        floor_num = int(floor_match[-1]) if floor_match else None
+        return extracted_address, extracted_area, floor_num
+    except:
+        return "", "", None
 
 # PDF → 이미지 변환
-def pdf_to_image(파일_경로, 페이지_num):
- doc = fitz.open(파일_경로)
- 페이지 = doc.load_page(페이지_num)
- pix = 페이지.get_pixmap ()
- img = pix.tobytes("png")
- 이미지 반환
+def pdf_to_image(file_path, page_num):
+    doc = fitz.open(file_path)
+    page = doc.load_page(page_num)
+    pix = page.get_pixmap()
+    img = pix.tobytes("png")
+    return img
 
 # 숫자 → 콤마 자동 포맷
 def format_with_comma(key):
@@ -209,55 +209,55 @@ for i in range(int(rows)):
         calc = 0
 
     principal_key = f"principal_{i}"
- 콜스[3].텍스트_입력(
- "원금",
- key=principal_key,
- value=f"{calc:,}",
- on_change=format_with_comma,
- args=(principal_key,)
- )
+    cols[3].text_input(
+        "원금",
+        key=principal_key,
+        value=f"{calc:,}",
+        on_change=format_with_comma,
+        args=(principal_key,)
+    )
 
- 상태 = cols[4].선택 상자 ("진행구분", ["유지", "대환", "선말소", 키=f"status_{i}")
+    status = cols[4].selectbox("진행구분", ["유지", "대환", "선말소"], key=f"status_{i}")
 
- 항목.append({
- "설정자": 대출 기관,
- "채권최고액": st.session_state.get(max_amt_key, ","),
- "설정비율": ratio,
- "원금": st.session_state.get(principal_key, ","),
- "진행구분": 상태
- })
+    items.append({
+        "설정자": lender,
+        "채권최고액": st.session_state.get(max_amt_key, ""),
+        "설정비율": ratio,
+        "원금": st.session_state.get(principal_key, ""),
+        "진행구분": status
+    })
 
 # ----------- 계산부 -----------
 total_value = parse_korean_number(raw_price_input)
 
 # 선순위 원금 합계 (대환 + 선말소)
-시니어_principal_합 = 합(
- int(re.sub(r "[^\\d], "", item.get ("원금", "0") 또는 0)
- 항목의 항목에 대해 ["대환", "선말소"]에서 항목을 선택합니다
+senior_principal_sum = sum(
+    int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
+    for item in items if item.get("진행구분") in ["대환", "선말소"]
 )
 
 # 대환 합계
 sum_dh = sum(
- int(re.sub(r "[^\\d], "", item.get ("원금", "0") 또는 0)
- 항목의 항목에 대해 "item.get ("진행구분") == "대환"
+    int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
+    for item in items if item.get("진행구분") == "대환"
 )
 
 # 선말소 합계
 sum_sm = sum(
- int(re.sub(r "[^\\d], "", item.get ("원금", "0") 또는 0)
- 항목의 항목에 대해 "item.get ("진행구분") == "선말소"
+    int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
+    for item in items if item.get("진행구분") == "선말소"
 )
 
 # 유효 항목만 필터링
-유효_items = []
-항목 내 항목에 대해:
- is_valid = any([
- item.get ("설정자", "".strip (),"
- re.sub(r "[^\\d], ", "item.get ("채권최고액", "" 또는 "0")!= "0",
- re.sub(r "[^\\d], ", "item.get ("원금", "" 또는 "0")!= "0"
- ])
- 만약 _valid:
- 유효_items.append(항목)
+valid_items = []
+for item in items:
+    is_valid = any([
+        item.get("설정자", "").strip(),
+        re.sub(r"[^\d]", "", item.get("채권최고액", "") or "0") != "0",
+        re.sub(r"[^\d]", "", item.get("원금", "") or "0") != "0"
+    ])
+    if is_valid:
+        valid_items.append(item)
 
 # LTV 계산 함수
 def calculate_ltv(total_value, deduction, senior_principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
