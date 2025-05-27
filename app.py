@@ -11,45 +11,87 @@ st.title("🏠 LTV 계산기 (주소+면적추출)")
 def floor_to_unit(value, unit=100):
     return value // unit * unit
 
-# 주소 추출 함수 (실제 정규표현식으로 교체 가능)
-def extract_address_from_text(text):
-    match = re.search(r"소재지\s*[:：]?\s*([^\n]+)", text)
-    return match.group(1).strip() if match else ""
 
-# PDF 처리 함수
-def process_pdf(path):
-    doc = fitz.open(path)
-    text = "".join([p.get_text() for p in doc])
+def process_pdf(uploaded_file):
+    import fitz
+    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+    text = ""
+    external_links = []
+
+    for page in doc:
+        text += page.get_text("text")
+        links = page.get_links()
+        for link in links:
+            if "uri" in link:
+                external_links.append(link["uri"])
     doc.close()
-    address = extract_address_from_text(text)
+
+    address = extract_address(text)
+    area, floor = extract_area_floor(text)
+    co_owners = extract_all_names_and_births(text)
+
+
+    return text, external_links, address, area, floor, co_owners
+
+
+uploaded_file = st.file_uploader("여기에 PDF 파일을 드래그하거나 클릭해서 업로드하세요", type="pdf")
+
+if uploaded_file is not None:
+    text, external_links, address, area, floor, co_owners = process_pdf(uploaded_file)
+
     st.session_state["extracted_address"] = address
-    st.success(f"PDF에서 주소 추출: {address}")
+    st.session_state["extracted_area"] = area
+    st.session_state["extracted_floor"] = floor
+    st.session_state["co_owners"] = co_owners
 
-# 등기명/주소/면적 추출 함수
-def extract_owner_number_from_text(text):
-    try:
-        lines = text.splitlines()
-        for i, line in enumerate(lines):
-            if "등록번호" in line:
-                line4 = lines[i + 4].strip() if i + 4 < len(lines) else ""
-                line5 = lines[i + 5].strip() if i + 5 < len(lines) else ""
-                combined = f"{line4} {line5}".strip()
-                return combined if combined.strip() else ""
-        return ""
-    except Exception:
-        return ""
+    st.success(f"📍 PDF에서 주소 추출: {address}")
 
-def extract_address_area_floor_from_text(text):
-    try:
-        address = re.search(r"\[집합건물\]\s*([^\n]+)", text)
-        extracted_address = address.group(1).strip() if address else ""
-        area_match = re.findall(r"(\d+\.\d+)\s*㎡", text)
-        extracted_area = f"{area_match[-1]}㎡" if area_match else ""
-        floor_match = re.findall(r"제(\d+)층", extracted_address)
-        floor_num = int(floor_match[-1]) if floor_match else None
-        return extracted_address, extracted_area, floor_num
-    except:
-        return "", "", None
+    if external_links:
+        st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
+        for uri in external_links:
+            st.code(uri)
+
+
+
+# 공동명의자(소유자/공유자) 이름 + 생년월일(6자리) 추출
+def extract_all_names_and_births(text):
+    start = text.find("주요 등기사항 요약")
+    if start == -1:
+        return []
+    summary = text[start:]
+    lines = [l.strip() for l in summary.splitlines() if l.strip()]
+    result = []
+
+    for i in range(len(lines)):
+        if re.match(r"[가-힣]+ \(공유자\)|[가-힣]+ \(소유자\)", lines[i]):
+            name = re.match(r"([가-힣]+)", lines[i]).group(1)
+            if i + 1 < len(lines):
+                birth_match = re.match(r"(\d{6})-", lines[i + 1])
+                if birth_match:
+                    birth = birth_match.group(1)
+                    result.append((name, birth))
+    return result
+
+# 주소 추출 함수
+def extract_address(text):
+    m = re.search(r"\[집합건물\]\s*([^\n]+)", text)
+    if m:
+        return m.group(1).strip()
+    m = re.search(r"소재지\s*[:：]?\s*([^\n]+)", text)
+    if m:
+        return m.group(1).strip()
+    return ""
+
+# 면적 + 층수 추출 함수
+def extract_area_floor(text):
+    m = re.findall(r"(\d+\.\d+)\s*㎡", text.replace('\n', ' '))
+    area = f"{m[-1]}㎡" if m else ""
+    floor = None
+    addr = extract_address(text)
+    f_match = re.findall(r"제(\d+)층", addr)
+    if f_match:
+        floor = int(f_match[-1])
+    return area, floor
 
 # PDF → 이미지 변환
 def pdf_to_image(file_path, page_num):
@@ -108,29 +150,25 @@ if "extracted_area" not in st.session_state:
 if "raw_price" not in st.session_state:
     st.session_state["raw_price"] = "0"
 
-# 로컬 PDF 선택 버튼
-uploaded_file = st.file_uploader("여기에 PDF 파일을 드래그하거나 클릭해서 업로드하세요", type="pdf")
-if uploaded_file is not None:
-    tmp_path = f"tmp_{uploaded_file.name}"
-    with open(tmp_path, "wb") as f:
-        f.write(uploaded_file.read())
-    process_pdf(tmp_path)
-    # 임시파일 삭제(필요시)
-    try:
-        os.remove(tmp_path)
-    except Exception:
-        pass
+
+
+
 
 # ----------- 입력 UI -----------
 
 col1, col2 = st.columns(2)
 
 with col1:
-    address_input = st.text_input("주소", st.session_state["extracted_address"], key="address_input")    
+    address_input = st.text_input("주소", st.session_state["extracted_address"], key="address_input")
 with col2:
     customer_name = st.text_input("고객명", "", key="customer_name")
 
-col1, col2 = st.columns(2)
+    # 👇 여기에 붙이기
+    co_owners = st.session_state.get("co_owners", [])
+    if co_owners:
+        st.markdown("#### 👥 공동명의자")
+        co_text = "  ".join([f"{name} - {birth}" for name, birth in co_owners])
+        st.markdown(co_text)
 
 # 수정된 부분 ⭐
 raw_price_value = st.session_state.get("raw_price", "0")
