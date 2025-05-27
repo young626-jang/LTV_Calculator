@@ -90,7 +90,7 @@ def parse_korean_number(text: str) -> int:
 
 # KB 시세 입력값 포맷 처리
 def format_kb_price():
-    raw = st.session_state.get("raw_price", "")
+    raw = st.session_state.get("raw_price_input", "")
     clean = parse_korean_number(raw)
     st.session_state["raw_price"] = "{:,}".format(clean) if clean else ""
 
@@ -98,8 +98,7 @@ def format_kb_price():
 def format_area():
     raw = st.session_state.get("area_input", "")
     clean = re.sub(r"[^\d.]", "", raw)
-    if clean and not raw.endswith("㎡"):
-        st.session_state["area_input"] = f"{clean}㎡"
+    st.session_state["extracted_area"] = f"{clean}㎡" if clean else ""
 
 # 세션 상태 초기화
 if "extracted_address" not in st.session_state:
@@ -123,6 +122,7 @@ if uploaded_file is not None:
         pass
 
 # ----------- 입력 UI -----------
+
 col1, col2 = st.columns(2)
 
 with col1:
@@ -131,8 +131,13 @@ with col2:
     customer_name = st.text_input("고객명", "", key="customer_name")
 
 col1, col2 = st.columns(2)
-raw_price_input = col1.text_input("KB 시세 (만원)", st.session_state["raw_price"], key="raw_price", on_change=format_kb_price)
-area_input = col2.text_input("전용면적 (㎡)", st.session_state["extracted_area"], key="area_input", on_change=format_area)
+
+# 수정된 부분 ⭐
+raw_price_value = st.session_state.get("raw_price", "0")
+raw_price_input = col1.text_input("KB 시세 (만원)", value=raw_price_value, key="raw_price_input", on_change=format_kb_price)
+
+area_value = st.session_state.get("extracted_area", "")
+area_input = col2.text_input("전용면적 (㎡)", value=area_value, key="area_input", on_change=format_area)
 
 # 층수 판단
 floor_match = re.findall(r"제(\d+)층", address_input)
