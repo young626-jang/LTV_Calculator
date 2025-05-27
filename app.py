@@ -1,9 +1,7 @@
 import streamlit as st
-from tkinter import Tk, filedialog
 import os
 import fitz  # PyMuPDF
 import re
-import urllib.parse
 from ltv_map import region_map
 
 st.set_page_config(page_title="LTV 계산기", layout="wide")
