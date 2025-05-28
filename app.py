@@ -133,14 +133,17 @@ def format_area():
     clean = re.sub(r"[^\d.]", "", raw)
     st.session_state["extracted_area"] = f"{clean}㎡" if clean else ""
 
-def calculate_ltv(total_value, deduction, senior_principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
+def calculate_ltv(total_value, deduction, principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
     if is_senior:
         limit = int(total_value * (ltv / 100) - deduction)
-        available = int(limit - senior_principal_sum)
+        available = int(limit - principal_sum)
     else:
         limit = int(total_value * (ltv / 100) - maintain_maxamt_sum - deduction)
-        available = int(limit - senior_principal_sum)
-    return (limit // 10) * 10, (available // 10) * 10
+        available = int(limit - principal_sum)
+    limit = (limit // 10) * 10
+    available = (available // 10) * 10
+    return limit, available
+
 
 # ------------------------------
 # 🔹 세션 초기화
@@ -345,13 +348,17 @@ for i in range(rows):
 
 total_value = parse_korean_number(raw_price_input)
 
+# 딕셔너리 변수 미리 선언 (항상!)
+limit_senior_dict = {}
+limit_sub_dict = {}
+
 # 항목 0개 처리
 if int(rows) == 0:
     st.markdown("### 📌 대출 항목이 없으므로 선순위 최대 LTV만 계산합니다")
     for ltv in ltv_selected:
         limit = int(total_value * (ltv / 100) - deduction)
         limit = (limit // 10) * 10
-        st.markdown(f"**선순위 LTV {ltv}%**: {limit:,}만 / 가용: {limit:,}만")
+        limit_senior_dict[ltv] = (limit, limit)
 else:
     # 진행구분별 합계
     sum_dh = sum(
@@ -393,7 +400,7 @@ else:
     # 조건 확인
     has_senior = any(item["진행구분"] in ["대환", "선말소"] for item in items)
     has_maintain = any(item["진행구분"] == "유지" for item in items)
-    
+
 # ------------------------------
 # 🔹 결과 출력
 # ------------------------------
@@ -410,7 +417,7 @@ if valid_items:
 
 for ltv in ltv_selected:
     if int(rows) == 0:
-        limit, avail = limit_senior_dict[ltv]
+        limit, avail = limit_senior_dict.get(ltv, (0, 0))
         text_to_copy += f"\n선순위 LTV {ltv}% {limit:,} 가용 {avail:,}"
     else:
         if ltv in limit_senior_dict:
@@ -419,6 +426,7 @@ for ltv in ltv_selected:
         if ltv in limit_sub_dict:
             limit, avail = limit_sub_dict[ltv]
             text_to_copy += f"\n후순위 LTV {ltv}% {limit:,} 가용 {avail:,}"
+
 
 text_to_copy += "\n진행구분별 원금 합계\n"
 if sum_dh > 0:
