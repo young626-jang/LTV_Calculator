@@ -181,12 +181,16 @@ if uploaded_file:
 
 
     # 4. 미리보기 이미지 렌더링
-    img_data = pdf_to_image(pdf_path, page_index)
-    if img_data:
-        st.image(img_data, caption=f"페이지 {page_index + 1}", use_column_width=True)
-    else:
-        st.warning("❗ 해당 페이지를 렌더링할 수 없습니다.")
+    # 좌측 페이지
+    img1 = pdf_to_image(pdf_path, page_index)
+    # 우측 페이지 (있을 경우)
+    img2 = pdf_to_image(pdf_path, page_index + 1) if page_index + 1 < total_pages else None
 
+    cols = st.columns(2)
+    with cols[0]:
+        if img1: st.image(img1, caption=f"{page_index + 1} 페이지")
+    with cols[1]:
+        if img2: st.image(img2, caption=f"{page_index + 2} 페이지")
 
     # 5. 이전/다음 버튼
     col_prev, _, col_next = st.columns([1, 2, 1])
