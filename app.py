@@ -311,7 +311,7 @@ ltv_selected = list(dict.fromkeys(ltv_selected))  # 중복만 제거
 # 🔹 대출 항목 입력
 # ------------------------------
 
-rows = st.number_input("대출 항목", min_value=1, max_value=10, value=3)
+rows = st.number_input("대출 항목", min_value=0, max_value=10, value=3)
 items = []
 
 for i in range(rows):
@@ -337,6 +337,7 @@ for i in range(rows):
         "원금": st.session_state.get(principal_key, ""),
         "진행구분": status
     })
+
 
 # ------------------------------
 # 🔹 LTV 계산부
@@ -392,26 +393,10 @@ else:
     # 조건 확인
     has_senior = any(item["진행구분"] in ["대환", "선말소"] for item in items)
     has_maintain = any(item["진행구분"] == "유지" for item in items)
-
-    # 계산 초기화
-    limit_senior = avail_senior = limit_sub = avail_sub = 0
-
-    for ltv in ltv_selected:
-        if has_senior and not has_maintain:
-            limit_senior, avail_senior = calculate_ltv(
-                total_value, deduction, sum_dh + sum_sm, 0, ltv, True
-            )
-            st.markdown(f"**선순위 LTV {ltv}%**: {limit_senior:,}만 / 가용: {avail_senior:,}만")
-        if has_maintain:
-            limit_sub, avail_sub = calculate_ltv(
-                total_value, deduction, sum_sub_principal, sum_maintain, ltv, False
-            )
-            st.markdown(f"**후순위 LTV {ltv}%**: {limit_sub:,}만 / 가용: {avail_sub:,}만")
-
+    
 # ------------------------------
 # 🔹 결과 출력
 # ------------------------------
-
 text_to_copy = f"고객명 : {customer_name}\n주소 : {address_input}\n"
 type_of_price = "하안가" if floor_num and floor_num <= 2 else "일반가"
 text_to_copy += f"{type_of_price} | KB시세: {raw_price_input}만 | 전용면적 : {area_input} | 방공제 금액 : {deduction:,}만\n"
@@ -424,10 +409,16 @@ if valid_items:
         text_to_copy += f"{item['설정자']} | 채권최고액: {max_amt:,} | 비율: {item.get('설정비율', '0')}% | 원금: {principal_amt:,} | {item['진행구분']}\n"
 
 for ltv in ltv_selected:
-    if has_senior and not has_maintain:
-        text_to_copy += f"\n선순위 LTV {ltv}% {limit_senior:,} 가용 {avail_senior:,}"
-    if has_maintain:
-        text_to_copy += f"\n후순위 LTV {ltv}% {limit_sub:,} 가용 {avail_sub:,}"
+    if int(rows) == 0:
+        limit, avail = limit_senior_dict[ltv]
+        text_to_copy += f"\n선순위 LTV {ltv}% {limit:,} 가용 {avail:,}"
+    else:
+        if ltv in limit_senior_dict:
+            limit, avail = limit_senior_dict[ltv]
+            text_to_copy += f"\n선순위 LTV {ltv}% {limit:,} 가용 {avail:,}"
+        if ltv in limit_sub_dict:
+            limit, avail = limit_sub_dict[ltv]
+            text_to_copy += f"\n후순위 LTV {ltv}% {limit:,} 가용 {avail:,}"
 
 text_to_copy += "\n진행구분별 원금 합계\n"
 if sum_dh > 0:
