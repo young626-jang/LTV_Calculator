@@ -83,11 +83,15 @@ def process_pdf(uploaded_file):
 def floor_to_unit(value, unit=100):
     return value // unit * unit
 
-def pdf_to_image(file, page_num):
-    file.seek(0)  # ✅ 반드시 필요!
-    doc = fitz.open(stream=file.read(), filetype="pdf")
+
+def pdf_to_image(pdf_file, page_num, zoom=2.0):
+    pdf_file.seek(0)
+    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+    if page_num >= len(doc):
+        return None
     page = doc.load_page(page_num)
-    pix = page.get_pixmap()
+    mat = fitz.Matrix(zoom, zoom)
+    pix = page.get_pixmap(matrix=mat)
     return pix.tobytes("png")
 
 
@@ -165,23 +169,39 @@ if uploaded_file:
     total_pages = len(doc)
     uploaded_file.seek(0)
 
-    # ✅ 슬라이더로 2페이지씩 넘기기
-    page_index = st.slider("📄 페이지 슬라이더", 0, max(0, total_pages - 1), step=2)
-    col1, col2 = st.columns(2)
+    # ✅ 세션에 현재 페이지 인덱스 저장 (없으면 0으로 초기화)
+    if "page_index" not in st.session_state:
+        st.session_state.page_index = 0
 
+    # ✅ 이전 / 다음 버튼 UI
+    col_prev, col_spacer, col_next = st.columns([1, 2, 1])
+    with col_prev:
+        if st.button("⬅️ 이전 페이지") and st.session_state.page_index >= 2:
+            st.session_state.page_index -= 2
+    with col_next:
+        if st.button("➡️ 다음 페이지") and st.session_state.page_index + 2 < total_pages:
+            st.session_state.page_index += 2
+
+    page_index = st.session_state.page_index
+
+    # ✅ PDF 이미지 출력 (2페이지씩)
+    col1, col2 = st.columns(2)
     with col1:
         uploaded_file.seek(0)
         img1 = pdf_to_image(uploaded_file, page_index)
         if img1:
             st.image(img1, caption=f"📄 페이지 {page_index + 1}", use_container_width=True)
-
     with col2:
         uploaded_file.seek(0)
         img2 = pdf_to_image(uploaded_file, page_index + 1)
         if img2:
             st.image(img2, caption=f"📄 페이지 {page_index + 2}", use_container_width=True)
 
-    # ✅ 외부 뷰어 열기
+    st.markdown(
+        f"🔢 현재 페이지 범위: {page_index + 1} - {min(page_index + 2, total_pages)} / 총 {total_pages}페이지"
+    )
+
+    # ✅ 외부 PDF 뷰어 열기 (Windows 전용)
     if platform.system() == "Windows":
         if st.button("📂 외부 PDF 뷰어로 열기"):
             import tempfile
@@ -200,7 +220,6 @@ if uploaded_file:
         st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
         for uri in external_links:
             st.code(uri)
-
 # ------------------------------
 # 🔹 입력 UI
 # ------------------------------
