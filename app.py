@@ -173,6 +173,8 @@ if uploaded_file is not None:
     if external_links:
         st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
         for uri in external_links:
+            st.code(uri)  # ✅ 여기에 이 코드가 빠졌던 것!
+
 
 # ------------------------------
 # 🔹 입력 UI
