@@ -8,6 +8,9 @@ import sys
 import webbrowser
 import platform
 import streamlit as st
+import base64
+import tempfile
+
 
 st.set_page_config(page_title="LTV 계산기", layout="wide")
 st.title("🏠 LTV 계산기 (주소+면적추출)")
@@ -173,23 +176,6 @@ if uploaded_file:
         st.session_state.page_index = 0
     page_index = st.session_state.page_index
 
-    # ✅ PDF 이미지 출력 (2페이지씩)
-    col1, col2 = st.columns(2)
-    with col1:
-        uploaded_file.seek(0)
-        img1 = pdf_to_image(uploaded_file, page_index)
-        if img1:
-            st.image(img1, caption=f"📄 페이지 {page_index + 1}", use_container_width=True)
-    with col2:
-        uploaded_file.seek(0)
-        img2 = pdf_to_image(uploaded_file, page_index + 1)
-        if img2:
-            st.image(img2, caption=f"📄 페이지 {page_index + 2}", use_container_width=True)
-
-    st.markdown(
-        f"🔢 현재 페이지 범위: {page_index + 1} - {min(page_index + 2, total_pages)} / 총 {total_pages}페이지"
-    )
-
     # ✅ 이전 / 다음 페이지 버튼 (화면 하단)
     col_prev, col_spacer, col_next = st.columns([1, 2, 1])
     with col_prev:
@@ -245,11 +231,8 @@ if floor_num is not None:
 # 🔹 버튼 & 지역 설정
 # ------------------------------
 
-# ------------------------------
-# 🔹 버튼 & 지역 설정
-# ------------------------------
-
-col1, col2, col3 = st.columns(3)
+# 🔹 세 버튼 나란히 배치
+col1, col2, _ = st.columns(3)
 
 with col1:
     if st.button("KB 시세 조회"):
@@ -259,22 +242,26 @@ with col2:
     if st.button("하우스머치 시세조회"):
         st.components.v1.html("<script>window.open('https://www.howsmuch.com','_blank')</script>", height=0)
 
-# ✅ 외부 PDF 뷰어 열기 버튼 - Windows 전용
-with col3:
-    system_name = platform.system()
-    if uploaded_file and system_name.lower().startswith("win"):
-        if st.button("📂 뷰어로 열기"):
-            import tempfile
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                tmp_file.write(uploaded_file.getbuffer())
-                tmp_path = tmp_file.name
-            try:
-                os.startfile(tmp_path)
-            except Exception as e:
-                st.error(f"뷰어 열기 실패: {e}")
-    elif uploaded_file:
-        st.info("🔒 현재 OS에서는 뷰어 열기 기능이 지원되지 않습니다.")
+# 🔹 새 탭 열기 링크는 아래 단독으로 렌더링
+if uploaded_file:
+    import base64
+    import tempfile
 
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(uploaded_file.getbuffer())
+        tmp_path = tmp_file.name
+
+    with open(tmp_path, "rb") as f:
+        base64_pdf = base64.b64encode(f.read()).decode("utf-8")
+
+    pdf_link = f'''
+        <a href="data:application/pdf;base64,{base64_pdf}" target="_blank"
+           style="display:inline-block; padding:0.5em 1em; background-color:#F0F0F0;
+                  color:#333; text-decoration:none; border-radius:5px; font-weight:bold; margin-top:1rem;">
+            📂 브라우저 새 탭에서 PDF 열기
+        </a>
+    '''
+    st.markdown(pdf_link, unsafe_allow_html=True)
 # ✅ 방공제 지역 및 금액 설정
 col1, col2 = st.columns(2)
 region = col1.selectbox("방공제 지역 선택", [""] + list(region_map.keys()))
