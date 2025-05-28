@@ -231,8 +231,7 @@ if floor_num is not None:
 # 🔹 버튼 & 지역 설정
 # ------------------------------
 
-# 🔹 세 버튼 나란히 배치
-col1, col2, _ = st.columns(3)
+col1, col2, col3 = st.columns(3)
 
 with col1:
     if st.button("KB 시세 조회"):
@@ -242,25 +241,43 @@ with col2:
     if st.button("하우스머치 시세조회"):
         st.components.v1.html("<script>window.open('https://www.howsmuch.com','_blank')</script>", height=0)
 
-# 🔹 새 탭 열기 링크는 아래 단독으로 렌더링
-if uploaded_file:
+# ✅ 외부 PDF 뷰어 열기 버튼 - Windows 전용
+with col3:
+    system_name = platform.system()
+    if uploaded_file:
+        # ✅ 1. 로컬 앱으로 열기 (Windows 한정)
+        if system_name.lower().startswith("win"):
+            if st.button("📂 로컬 뷰어로 열기"):
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                    tmp_file.write(uploaded_file.getbuffer())
+                    tmp_path = tmp_file.name
+                try:
+                    os.startfile(tmp_path)
+                except Exception as e:
+                    st.error(f"❌ 뷰어 열기 실패: {e}")
+        
+        # ✅ 2. 브라우저 새 탭에서 열기 (모든 OS)
+        import base64, tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.getbuffer())
+            tmp_path = tmp_file.name
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-        tmp_file.write(uploaded_file.getbuffer())
-        tmp_path = tmp_file.name
+        with open(tmp_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode("utf-8")
 
-    with open(tmp_path, "rb") as f:
-        base64_pdf = base64.b64encode(f.read()).decode("utf-8")
+        # 브라우저에서 새 탭 열기용 링크 렌더링
+        st.markdown(
+            f'''
+            <a href="data:application/pdf;base64,{base64_pdf}" target="_blank" style="font-size:16px; text-decoration:none;">
+                🌐 브라우저로 보기
+            </a>
+            ''',
+            unsafe_allow_html=True
+        )
+    else:
+        st.info("🔒 PDF 파일이 업로드되면 보기 기능이 활성화됩니다.")
 
-    pdf_link = f'''
-        <a href="data:application/pdf;base64,{base64_pdf}" target="_blank"
-           style="display:inline-block; padding:0.5em 1em; background-color:#F0F0F0;
-                  color:#333; text-decoration:none; border-radius:5px; font-weight:bold; margin-top:1rem;">
-            📂 브라우저 새 탭에서 PDF 열기
-        </a>
-    '''
-    st.markdown(pdf_link, unsafe_allow_html=True)
-    
 # ✅ 방공제 지역 및 금액 설정
 col1, col2 = st.columns(2)
 region = col1.selectbox("방공제 지역 선택", [""] + list(region_map.keys()))
