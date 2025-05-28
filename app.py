@@ -346,40 +346,59 @@ for i in range(rows):
 
 total_value = parse_korean_number(raw_price_input)
 
-senior_principal_sum = sum(
-    int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
-    for item in items if item.get("진행구분") in ["대환", "선말소"]
-)
-
+# 진행구분별 합계
 sum_dh = sum(
     int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
     for item in items if item.get("진행구분") == "대환"
 )
-
 sum_sm = sum(
     int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
     for item in items if item.get("진행구분") == "선말소"
 )
+sum_maintain = sum(
+    int(re.sub(r"[^\d]", "", item.get("채권최고액", "0")) or 0)
+    for item in items if item.get("진행구분") == "유지"
+)
+sum_sub_principal = sum(
+    int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
+    for item in items if item.get("진행구분") not in ["유지"]
+)
 
+# 유효 항목 필터링
 valid_items = [item for item in items if any([
     item.get("설정자", "").strip(),
     re.sub(r"[^\d]", "", item.get("채권최고액", "") or "0") != "0",
     re.sub(r"[^\d]", "", item.get("원금", "") or "0") != "0"
 ])]
 
+# LTV 계산 함수
+def calculate_ltv(total_value, deduction, principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
+    if is_senior:
+        limit = int(total_value * (ltv / 100) - deduction)
+        available = int(limit - principal_sum)
+    else:
+        limit = int(total_value * (ltv / 100) - maintain_maxamt_sum - deduction)
+        available = int(limit - principal_sum)
+    limit = (limit // 10) * 10
+    available = (available // 10) * 10
+    return limit, available
+
+# 조건 확인
+has_senior = any(item["진행구분"] in ["대환", "선말소"] for item in items)
+has_maintain = any(item["진행구분"] == "유지" for item in items)
+
+# 계산 초기화
 limit_senior = avail_senior = limit_sub = avail_sub = 0
 
 for ltv in ltv_selected:
-    if has_senior := any(item["진행구분"] in ["대환", "선말소"] for item in items):
-        if not any(item["진행구분"] == "유지" for item in items):
-            limit_senior, avail_senior = calculate_ltv(total_value, deduction, senior_principal_sum, 0, ltv, True)
-    if has_maintain := any(item["진행구분"] == "유지" for item in items):
-        maintain_maxamt_sum = sum(
-            int(re.sub(r"[^\d]", "", item.get("채권최고액", "0")) or 0)
-            for item in items if item.get("진행구분") == "유지"
+    if has_senior and not has_maintain:
+        limit_senior, avail_senior = calculate_ltv(
+            total_value, deduction, sum_dh + sum_sm, 0, ltv, True
         )
-        limit_sub, avail_sub = calculate_ltv(total_value, deduction, senior_principal_sum, maintain_maxamt_sum, ltv, False)
-
+    if has_maintain:
+        limit_sub, avail_sub = calculate_ltv(
+            total_value, deduction, sum_sub_principal, sum_maintain, ltv, False
+        )
 # ------------------------------
 # 🔹 결과 출력
 # ------------------------------
