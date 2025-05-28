@@ -6,6 +6,8 @@ from ltv_map import region_map
 import subprocess
 import sys
 import webbrowser
+import platform
+import streamlit as st
 
 st.set_page_config(page_title="LTV 계산기", layout="wide")
 st.title("🏠 LTV 계산기 (주소+면적추출)")
@@ -159,21 +161,53 @@ if uploaded_file is not None:
 
     st.success(f"📍 PDF에서 주소 추출: {address}")
 
-    # 📸 PDF 1페이지 미리보기 표시
-    img_data = pdf_to_image(uploaded_file, page_num=0)
-    st.image(img_data, caption="📄 1페이지 미리보기", use_container_width=True)
+def pdf_to_image(pdf_file, page_num, zoom=2.0):
+    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+    if page_num >= len(doc):
+        return None
+    page = doc.load_page(page_num)
+    mat = fitz.Matrix(zoom, zoom)
+    pix = page.get_pixmap(matrix=mat)
+    return pix.tobytes("png")
 
-    # 🖥 외부 뷰어 열기 버튼 (윈도우 환경에서만 작동)
-    def open_pdf_viewer(filepath):
-        try:
-            if sys.platform.startswith("win"):
-                os.startfile(filepath)
-            elif sys.platform.startswith("darwin"):  # macOS
-                subprocess.call(["open", filepath])
-            else:  # Linux
-                subprocess.call(["xdg-open", filepath])
-        except Exception as e:
-            st.error(f"❌ 뷰어 열기 실패: {e}")
+# 업로드된 PDF 파일
+uploaded_file = st.file_uploader("📎 PDF 파일 업로드", type="pdf")
+
+if uploaded_file:
+    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+    total_pages = len(doc)
+    uploaded_file.seek(0)  # 리셋해야 다시 읽을 수 있음
+
+    # 슬라이더: 2페이지 단위로 넘김
+    page_index = st.slider("📄 페이지 슬라이더", 0, max(0, total_pages - 1), step=2)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        uploaded_file.seek(0)  # 다시 읽기 위해 초기화
+        img1 = pdf_to_image(uploaded_file, page_index)
+        if img1:
+            st.image(img1, caption=f"📄 페이지 {page_index + 1}", use_container_width=True)
+
+    with col2:
+        uploaded_file.seek(0)
+        img2 = pdf_to_image(uploaded_file, page_index + 1)
+        if img2:
+            st.image(img2, caption=f"📄 페이지 {page_index + 2}", use_container_width=True)
+
+    if platform.system() == "Windows":
+        if st.button("📂 외부 PDF 뷰어로 열기"):
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                tmp_file.write(uploaded_file.getbuffer())
+                tmp_path = tmp_file.name
+
+            try:
+                os.startfile(tmp_path)
+            except Exception as e:
+                st.error(f"뷰어 열기 실패: {e}")
+    else:
+        st.info("🔒 이 기능은 Windows 환경에서만 동작합니다.")
 
     # 🔗 외부 링크 경고
     if external_links:
