@@ -146,45 +146,31 @@ for key in ["extracted_address", "extracted_area", "raw_price", "co_owners", "ex
         st.session_state[key] = "" if key != "co_owners" else []
 
 # ------------------------------
-# 🔹 PDF 업로드
+# 🔹 PDF 업로드 및 처리
 # ------------------------------
+uploaded_file = st.file_uploader("📎 PDF 파일 업로드", type="pdf")
 
-uploaded_file = st.file_uploader("여기에 PDF 파일을 드래그하거나 클릭해서 업로드하세요", type="pdf")
-
-if uploaded_file is not None:
+if uploaded_file:
+    # ✅ 추출 및 세션 저장
     text, external_links, address, area, floor, co_owners = process_pdf(uploaded_file)
-
     st.session_state["extracted_address"] = address
     st.session_state["extracted_area"] = area
     st.session_state["extracted_floor"] = floor
     st.session_state["co_owners"] = co_owners
-
     st.success(f"📍 PDF에서 주소 추출: {address}")
 
-def pdf_to_image(pdf_file, page_num, zoom=2.0):
-    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
-    if page_num >= len(doc):
-        return None
-    page = doc.load_page(page_num)
-    mat = fitz.Matrix(zoom, zoom)
-    pix = page.get_pixmap(matrix=mat)
-    return pix.tobytes("png")
-
-# 업로드된 PDF 파일
-uploaded_file = st.file_uploader("📎 PDF 파일 업로드", type="pdf")
-
-if uploaded_file:
+    # ✅ 페이지 수 확인용 초기화
+    uploaded_file.seek(0)
     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
     total_pages = len(doc)
-    uploaded_file.seek(0)  # 리셋해야 다시 읽을 수 있음
+    uploaded_file.seek(0)
 
-    # 슬라이더: 2페이지 단위로 넘김
+    # ✅ 슬라이더로 2페이지씩 넘기기
     page_index = st.slider("📄 페이지 슬라이더", 0, max(0, total_pages - 1), step=2)
-
     col1, col2 = st.columns(2)
 
     with col1:
-        uploaded_file.seek(0)  # 다시 읽기 위해 초기화
+        uploaded_file.seek(0)
         img1 = pdf_to_image(uploaded_file, page_index)
         if img1:
             st.image(img1, caption=f"📄 페이지 {page_index + 1}", use_container_width=True)
@@ -195,13 +181,13 @@ if uploaded_file:
         if img2:
             st.image(img2, caption=f"📄 페이지 {page_index + 2}", use_container_width=True)
 
+    # ✅ 외부 뷰어 열기
     if platform.system() == "Windows":
         if st.button("📂 외부 PDF 뷰어로 열기"):
             import tempfile
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 tmp_file.write(uploaded_file.getbuffer())
                 tmp_path = tmp_file.name
-
             try:
                 os.startfile(tmp_path)
             except Exception as e:
@@ -209,12 +195,11 @@ if uploaded_file:
     else:
         st.info("🔒 이 기능은 Windows 환경에서만 동작합니다.")
 
-    # 🔗 외부 링크 경고
+    # ✅ 링크 경고 출력
     if external_links:
         st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
         for uri in external_links:
-            st.code(uri)  # ✅ 여기에 이 코드가 빠졌던 것!
-
+            st.code(uri)
 
 # ------------------------------
 # 🔹 입력 UI
