@@ -244,8 +244,6 @@ with col2:
 
 # 🔹 새 탭 열기 링크는 아래 단독으로 렌더링
 if uploaded_file:
-    import base64
-    import tempfile
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
         tmp_file.write(uploaded_file.getbuffer())
@@ -262,6 +260,7 @@ if uploaded_file:
         </a>
     '''
     st.markdown(pdf_link, unsafe_allow_html=True)
+    
 # ✅ 방공제 지역 및 금액 설정
 col1, col2 = st.columns(2)
 region = col1.selectbox("방공제 지역 선택", [""] + list(region_map.keys()))
