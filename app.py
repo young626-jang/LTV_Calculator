@@ -433,14 +433,14 @@ def parse_comma_number(text):
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    consult_input = st.text_input("컨설팅 금액 (만원)", "15,000", key="consult_amt")
+    consult_input = st.text_input("컨설팅 금액 (만원)", "", key="consult_amt")
     consult_amount = parse_comma_number(consult_input)
 
 with col2:
     consult_rate = st.number_input("컨설팅 수수료율 (%)", min_value=0.0, value=1.5, step=0.1, format="%.1f")
 
 with col3:
-    bridge_input = st.text_input("브릿지 금액 (만원)", "10,000", key="bridge_amt")
+    bridge_input = st.text_input("브릿지 금액 (만원)", "", key="bridge_amt")
     bridge_amount = parse_comma_number(bridge_input)
 
 with col4:
