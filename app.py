@@ -169,19 +169,8 @@ if uploaded_file:
     total_pages = len(doc)
     uploaded_file.seek(0)
 
-    # ✅ 세션에 현재 페이지 인덱스 저장 (없으면 0으로 초기화)
     if "page_index" not in st.session_state:
         st.session_state.page_index = 0
-
-    # ✅ 이전 / 다음 버튼 UI
-    col_prev, col_spacer, col_next = st.columns([1, 2, 1])
-    with col_prev:
-        if st.button("⬅️ 이전 페이지") and st.session_state.page_index >= 2:
-            st.session_state.page_index -= 2
-    with col_next:
-        if st.button("➡️ 다음 페이지") and st.session_state.page_index + 2 < total_pages:
-            st.session_state.page_index += 2
-
     page_index = st.session_state.page_index
 
     # ✅ PDF 이미지 출력 (2페이지씩)
@@ -201,25 +190,49 @@ if uploaded_file:
         f"🔢 현재 페이지 범위: {page_index + 1} - {min(page_index + 2, total_pages)} / 총 {total_pages}페이지"
     )
 
-    # ✅ 외부 PDF 뷰어 열기 (Windows 전용)
-    if platform.system() == "Windows":
-        if st.button("📂 외부 PDF 뷰어로 열기"):
-            import tempfile
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                tmp_file.write(uploaded_file.getbuffer())
-                tmp_path = tmp_file.name
-            try:
-                os.startfile(tmp_path)
-            except Exception as e:
-                st.error(f"뷰어 열기 실패: {e}")
-    else:
-        st.info("🔒 이 기능은 Windows 환경에서만 동작합니다.")
+    # ✅ 버튼 라인: KB시세 / 하우스머치 / PDF 뷰어
+    col1, col2, col3 = st.columns(3)
 
-    # ✅ 링크 경고 출력
+    with col1:
+        if st.button("📍 KB 시세 조회"):
+            st.components.v1.html("<script>window.open('https://kbland.kr/map','_blank')</script>", height=0)
+
+    with col2:
+        if st.button("📊 하우스머치 시세조회"):
+            st.components.v1.html("<script>window.open('https://www.howsmuch.com','_blank')</script>", height=0)
+
+    with col3:
+        if platform.system() == "Windows":
+            if st.button("📂 뷰어로 열기"):
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                    tmp_file.write(uploaded_file.getbuffer())
+                    tmp_path = tmp_file.name
+                try:
+                    os.startfile(tmp_path)  # 기본 PDF 뷰어로 열기 (Adobe 포함)
+                except Exception as e:
+                    st.error(f"뷰어 열기 실패: {e}")
+        else:
+            st.info("🔒 '뷰어로 열기'는 Windows에서만 지원됩니다.")
+
+    # ✅ 이전 / 다음 페이지 버튼 (화면 하단)
+    col_prev, col_spacer, col_next = st.columns([1, 2, 1])
+    with col_prev:
+        if st.button("⬅️ 이전 페이지") and page_index >= 2:
+            st.session_state.page_index -= 2
+    with col_next:
+        if st.button("➡️ 다음 페이지") and page_index + 2 < total_pages:
+            st.session_state.page_index += 2
+
+    # ✅ 외부 링크 경고
     if external_links:
         st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
         for uri in external_links:
             st.code(uri)
+
+
+
+
 # ------------------------------
 # 🔹 입력 UI
 # ------------------------------
