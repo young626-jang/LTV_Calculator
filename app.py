@@ -408,3 +408,36 @@ if sum_sm > 0:
     text_to_copy += f"선말소: {sum_sm:,}만\n"
 
 st.text_area("결과 내용", value=text_to_copy, height=320)
+
+
+# ------------------------------
+# 🔹 수수료 계산기
+# ------------------------------
+st.markdown("---")
+st.markdown("### 💰 수수료 계산기")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    consult_amount = st.number_input("컨설팅 금액 (만원)", min_value=0, value=15000, step=100)
+
+with col2:
+    consult_rate = st.number_input("컨설팅 수수료율 (%)", min_value=0.0, value=1.5, step=0.1, format="%.1f")
+
+with col3:
+    bridge_amount = st.number_input("브릿지 금액 (만원)", min_value=0, value=10000, step=100)
+
+with col4:
+    bridge_rate = st.number_input("브릿지 수수료율 (%)", min_value=0.0, value=0.7, step=0.1, format="%.1f")
+
+# 계산
+consult_fee = int(consult_amount * consult_rate / 100)
+bridge_fee = int(bridge_amount * bridge_rate / 100)
+total_fee = consult_fee + bridge_fee
+
+# 표시
+st.markdown(f"""
+#### 💸 수수료 합계: **{total_fee:,}만원**
+- 컨설팅 수수료: {consult_fee:,}만원
+- 브릿지 수수료: {bridge_fee:,}만원
+""")
