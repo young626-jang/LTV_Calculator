@@ -261,19 +261,19 @@ with col2:
 
 # ✅ 외부 PDF 뷰어 열기 버튼 - Windows 전용
 with col3:
-    if uploaded_file:
-        if platform.system() == "Windows":
-            if st.button("📂 뷰어로 열기"):
-                import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                    tmp_file.write(uploaded_file.getbuffer())
-                    tmp_path = tmp_file.name
-                try:
-                    os.startfile(tmp_path)
-                except Exception as e:
-                    st.error(f"뷰어 열기 실패: {e}")
-        else:
-            st.info("🔒 '뷰어로 열기'는 Windows에서만 지원됩니다.")
+    system_name = platform.system()
+    if uploaded_file and system_name.lower().startswith("win"):
+        if st.button("📂 뷰어로 열기"):
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                tmp_file.write(uploaded_file.getbuffer())
+                tmp_path = tmp_file.name
+            try:
+                os.startfile(tmp_path)
+            except Exception as e:
+                st.error(f"뷰어 열기 실패: {e}")
+    elif uploaded_file:
+        st.info("🔒 현재 OS에서는 뷰어 열기 기능이 지원되지 않습니다.")
 
 # ✅ 방공제 지역 및 금액 설정
 col1, col2 = st.columns(2)
