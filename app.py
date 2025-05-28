@@ -294,7 +294,6 @@ if manual_d:
 # 🔹 LTV 입력
 # ------------------------------
 
-col1, col2 = st.columns(2)
 raw_ltv1 = col1.text_input("LTV 비율 ①", "80")
 raw_ltv2 = col2.text_input("LTV 비율 ②", "")
 
@@ -305,9 +304,8 @@ for val in [raw_ltv1, raw_ltv2]:
         if 1 <= v <= 100:
             ltv_selected.append(v)
     except:
-        pass
-
-ltv_selected = list(dict.fromkeys(ltv_selected))
+        continue  # 숫자 외 입력 무시
+ltv_selected = list(dict.fromkeys(ltv_selected))  # 중복만 제거
 
 # ------------------------------
 # 🔹 대출 항목 입력
@@ -346,59 +344,70 @@ for i in range(rows):
 
 total_value = parse_korean_number(raw_price_input)
 
-# 진행구분별 합계
-sum_dh = sum(
-    int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
-    for item in items if item.get("진행구분") == "대환"
-)
-sum_sm = sum(
-    int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
-    for item in items if item.get("진행구분") == "선말소"
-)
-sum_maintain = sum(
-    int(re.sub(r"[^\d]", "", item.get("채권최고액", "0")) or 0)
-    for item in items if item.get("진행구분") == "유지"
-)
-sum_sub_principal = sum(
-    int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
-    for item in items if item.get("진행구분") not in ["유지"]
-)
-
-# 유효 항목 필터링
-valid_items = [item for item in items if any([
-    item.get("설정자", "").strip(),
-    re.sub(r"[^\d]", "", item.get("채권최고액", "") or "0") != "0",
-    re.sub(r"[^\d]", "", item.get("원금", "") or "0") != "0"
-])]
-
-# LTV 계산 함수
-def calculate_ltv(total_value, deduction, principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
-    if is_senior:
+# 항목 0개 처리
+if int(rows) == 0:
+    st.markdown("### 📌 대출 항목이 없으므로 선순위 최대 LTV만 계산합니다")
+    for ltv in ltv_selected:
         limit = int(total_value * (ltv / 100) - deduction)
-        available = int(limit - principal_sum)
-    else:
-        limit = int(total_value * (ltv / 100) - maintain_maxamt_sum - deduction)
-        available = int(limit - principal_sum)
-    limit = (limit // 10) * 10
-    available = (available // 10) * 10
-    return limit, available
+        limit = (limit // 10) * 10
+        st.markdown(f"**선순위 LTV {ltv}%**: {limit:,}만 / 가용: {limit:,}만")
+else:
+    # 진행구분별 합계
+    sum_dh = sum(
+        int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
+        for item in items if item.get("진행구분") == "대환"
+    )
+    sum_sm = sum(
+        int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
+        for item in items if item.get("진행구분") == "선말소"
+    )
+    sum_maintain = sum(
+        int(re.sub(r"[^\d]", "", item.get("채권최고액", "0")) or 0)
+        for item in items if item.get("진행구분") == "유지"
+    )
+    sum_sub_principal = sum(
+        int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
+        for item in items if item.get("진행구분") not in ["유지"]
+    )
 
-# 조건 확인
-has_senior = any(item["진행구분"] in ["대환", "선말소"] for item in items)
-has_maintain = any(item["진행구분"] == "유지" for item in items)
+    # 유효 항목 필터링
+    valid_items = [item for item in items if any([
+        item.get("설정자", "").strip(),
+        re.sub(r"[^\d]", "", item.get("채권최고액", "") or "0") != "0",
+        re.sub(r"[^\d]", "", item.get("원금", "") or "0") != "0"
+    ])]
 
-# 계산 초기화
-limit_senior = avail_senior = limit_sub = avail_sub = 0
+    # LTV 계산 함수
+    def calculate_ltv(total_value, deduction, principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
+        if is_senior:
+            limit = int(total_value * (ltv / 100) - deduction)
+            available = int(limit - principal_sum)
+        else:
+            limit = int(total_value * (ltv / 100) - maintain_maxamt_sum - deduction)
+            available = int(limit - principal_sum)
+        limit = (limit // 10) * 10
+        available = (available // 10) * 10
+        return limit, available
 
-for ltv in ltv_selected:
-    if has_senior and not has_maintain:
-        limit_senior, avail_senior = calculate_ltv(
-            total_value, deduction, sum_dh + sum_sm, 0, ltv, True
-        )
-    if has_maintain:
-        limit_sub, avail_sub = calculate_ltv(
-            total_value, deduction, sum_sub_principal, sum_maintain, ltv, False
-        )
+    # 조건 확인
+    has_senior = any(item["진행구분"] in ["대환", "선말소"] for item in items)
+    has_maintain = any(item["진행구분"] == "유지" for item in items)
+
+    # 계산 초기화
+    limit_senior = avail_senior = limit_sub = avail_sub = 0
+
+    for ltv in ltv_selected:
+        if has_senior and not has_maintain:
+            limit_senior, avail_senior = calculate_ltv(
+                total_value, deduction, sum_dh + sum_sm, 0, ltv, True
+            )
+            st.markdown(f"**선순위 LTV {ltv}%**: {limit_senior:,}만 / 가용: {avail_senior:,}만")
+        if has_maintain:
+            limit_sub, avail_sub = calculate_ltv(
+                total_value, deduction, sum_sub_principal, sum_maintain, ltv, False
+            )
+            st.markdown(f"**후순위 LTV {ltv}%**: {limit_sub:,}만 / 가용: {avail_sub:,}만")
+
 # ------------------------------
 # 🔹 결과 출력
 # ------------------------------
