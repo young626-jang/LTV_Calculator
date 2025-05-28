@@ -171,13 +171,24 @@ if uploaded_file:
     pdf_path = st.session_state["uploaded_pdf_path"]
     doc = fitz.open(pdf_path)
     total_pages = len(doc)
+    doc.close()  # ✅ 꼭 닫아주세요!
+
 
     # 3. 페이지 인덱스 세션 초기화
     if "page_index" not in st.session_state:
         st.session_state.page_index = 0
     page_index = st.session_state.page_index
 
-    # 4. 이전/다음 버튼
+
+    # 4. 미리보기 이미지 렌더링
+    img_data = pdf_to_image(pdf_path, page_index)
+    if img_data:
+        st.image(img_data, caption=f"페이지 {page_index + 1}", use_column_width=True)
+    else:
+        st.warning("❗ 해당 페이지를 렌더링할 수 없습니다.")
+
+
+    # 5. 이전/다음 버튼
     col_prev, _, col_next = st.columns([1, 2, 1])
     with col_prev:
         if st.button("⬅️ 이전 페이지") and page_index >= 2:
@@ -186,7 +197,7 @@ if uploaded_file:
         if st.button("➡️ 다음 페이지") and page_index + 2 < total_pages:
             st.session_state.page_index += 2
 
-    # 5. 외부 링크 경고
+    # 56. 외부 링크 경고
     if external_links:
         st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
         for uri in external_links:
@@ -244,12 +255,12 @@ with col2:
 
 with col3:
     if uploaded_file:
-        uploaded_file.seek(0)  # ✅ PDF 스트림 초기화
-
-        # PDF를 임시로 저장
+        # 항상 새로 저장
+        uploaded_file.seek(0)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(uploaded_file.getbuffer())
             tmp_path = tmp_file.name
+            st.session_state["uploaded_pdf_path"] = tmp_path
 
         # Base64 인코딩
         with open(tmp_path, "rb") as f:
