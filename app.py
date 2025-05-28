@@ -154,10 +154,25 @@ if uploaded_file is not None:
 
     st.success(f"📍 PDF에서 주소 추출: {address}")
 
+    # 📸 PDF 1페이지 미리보기 표시
+    img_data = pdf_to_image(uploaded_file, page_num=0)
+    st.image(img_data, caption="📄 1페이지 미리보기", use_column_width=True)
+
+    # 🖥 외부 뷰어 열기 버튼 (윈도우 환경에서만 작동)
+    if st.button("📂 외부 PDF 뷰어로 열기"):
+        try:
+            # 파일을 임시 저장 후 os.startfile로 오픈
+            tmp_path = f"temp_{uploaded_file.name}"
+            with open(tmp_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            os.startfile(tmp_path)
+        except Exception as e:
+            st.error(f"뷰어 열기 실패: {e}")
+
+    # 🔗 외부 링크 경고
     if external_links:
         st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
         for uri in external_links:
-            st.code(uri)
 
 # ------------------------------
 # 🔹 입력 UI
@@ -169,13 +184,12 @@ with col1:
     address_input = st.text_input("주소", st.session_state["extracted_address"], key="address_input")
 
 with col2:
-    customer_name = st.text_input("고객명", "", key="customer_name")
-
+    # 공동명의자 정보를 불러와서 문자열로 변환
     co_owners = st.session_state.get("co_owners", [])
-    if co_owners:
-        st.markdown("#### 👥 공동명의자")
-        co_text = "  ".join([f"{name} - {birth}" for name, birth in co_owners])
-        st.markdown(co_text)
+    default_name_text = "  ".join([f"{name} - {birth}" for name, birth in co_owners]) if co_owners else ""
+
+    # 고객명 입력란에 공동명의자 정보 자동 채움
+    customer_name = st.text_input("고객명", default_name_text, key="customer_name")
 
 col1, col2 = st.columns(2)
 raw_price_value = st.session_state.get("raw_price", "0")
