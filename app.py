@@ -341,18 +341,17 @@ for i in range(rows):
         "진행구분": status
     })
 
-
 # ------------------------------
 # 🔹 LTV 계산부
 # ------------------------------
 
 total_value = parse_korean_number(raw_price_input)
 
-# 딕셔너리 변수 미리 선언 (항상!)
+# ✅ 항상 초기화: 이후 오류 방지
 limit_senior_dict = {}
 limit_sub_dict = {}
+valid_items = []
 
-# 항목 0개 처리
 if int(rows) == 0:
     st.markdown("### 📌 대출 항목이 없으므로 선순위 최대 LTV만 계산합니다")
     for ltv in ltv_selected:
@@ -360,7 +359,7 @@ if int(rows) == 0:
         limit = (limit // 10) * 10
         limit_senior_dict[ltv] = (limit, limit)
 else:
-    # 진행구분별 합계
+    # 진행구분별 합계 계산
     sum_dh = sum(
         int(re.sub(r"[^\d]", "", item.get("원금", "0")) or 0)
         for item in items if item.get("진행구분") == "대환"
@@ -378,14 +377,14 @@ else:
         for item in items if item.get("진행구분") not in ["유지"]
     )
 
-    # 유효 항목 필터링
+    # 유효 항목만 필터링
     valid_items = [item for item in items if any([
         item.get("설정자", "").strip(),
         re.sub(r"[^\d]", "", item.get("채권최고액", "") or "0") != "0",
         re.sub(r"[^\d]", "", item.get("원금", "") or "0") != "0"
     ])]
 
-    # LTV 계산 함수
+    # ✅ LTV 계산 함수 (중복 제거)
     def calculate_ltv(total_value, deduction, principal_sum, maintain_maxamt_sum, ltv, is_senior=True):
         if is_senior:
             limit = int(total_value * (ltv / 100) - deduction)
@@ -397,9 +396,21 @@ else:
         available = (available // 10) * 10
         return limit, available
 
-    # 조건 확인
+    # LTV 값들에 대해 계산 수행
+    for ltv in ltv_selected:
+        if ltv:
+            # 선순위 계산: 대환 + 선말소
+            limit, available = calculate_ltv(total_value, deduction, sum_dh + sum_sm, 0, ltv, is_senior=True)
+            limit_senior_dict[ltv] = (limit, available)
+
+            # 후순위 계산: 유지 채권최고액 차감
+            limit_sub, avail_sub = calculate_ltv(total_value, deduction, sum_sub_principal, sum_maintain, ltv, is_senior=False)
+            limit_sub_dict[ltv] = (limit_sub, avail_sub)
+
+    # 조건 확인 (향후 활용 가능)
     has_senior = any(item["진행구분"] in ["대환", "선말소"] for item in items)
     has_maintain = any(item["진행구분"] == "유지" for item in items)
+
 
 # ------------------------------
 # 🔹 결과 출력
@@ -408,24 +419,24 @@ text_to_copy = f"고객명 : {customer_name}\n주소 : {address_input}\n"
 type_of_price = "하안가" if floor_num and floor_num <= 2 else "일반가"
 text_to_copy += f"{type_of_price} | KB시세: {raw_price_input}만 | 전용면적 : {area_input} | 방공제 금액 : {deduction:,}만\n"
 
+
 if valid_items:
     text_to_copy += "\n대출 항목\n"
     for item in valid_items:
-        max_amt = int(re.sub(r"[^\d]", "", item.get("채권최고액", "") or "0"))
-        principal_amt = int(re.sub(r"[^\d]", "", item.get("원금", "") or "0"))
-        text_to_copy += f"{item['설정자']} | 채권최고액: {max_amt:,} | 비율: {item.get('설정비율', '0')}% | 원금: {principal_amt:,} | {item['진행구분']}\n"
+        max_amt = int(re.sub(r"[^\d]", "", item.get("채권최고액", "0")))
+        principal_amt = int(re.sub(r"[^\d]", "", item.get("원금", "0")))
+        text_to_copy += f"{item.get('설정자', '')} | 채권최고액: {max_amt:,} | 비율: {item.get('설정비율', '0')}% | 원금: {principal_amt:,} | {item.get('진행구분', '')}\n"
 
-for ltv in ltv_selected:
-    if int(rows) == 0:
-        limit, avail = limit_senior_dict.get(ltv, (0, 0))
-        text_to_copy += f"\n선순위 LTV {ltv}% {limit:,} 가용 {avail:,}"
-    else:
-        if ltv in limit_senior_dict:
-            limit, avail = limit_senior_dict[ltv]
-            text_to_copy += f"\n선순위 LTV {ltv}% {limit:,} 가용 {avail:,}"
-        if ltv in limit_sub_dict:
-            limit, avail = limit_sub_dict[ltv]
-            text_to_copy += f"\n후순위 LTV {ltv}% {limit:,} 가용 {avail:,}"
+
+if int(rows) == 0:
+    st.markdown("### 📌 대출 항목이 없으므로 선순위 최대 LTV만 계산합니다")
+    
+    valid_items = []  # ✅ 꼭 초기화해줘야 이후 코드에서 사용 가능!
+    
+    for ltv in ltv_selected:
+        limit = int(total_value * (ltv / 100) - deduction)
+        limit = (limit // 10) * 10
+        limit_senior_dict[ltv] = (limit, limit)
 
 
 text_to_copy += "\n진행구분별 원금 합계\n"
