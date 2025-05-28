@@ -266,22 +266,13 @@ with col3:
             tmp_path = tmp_file.name
             st.session_state["uploaded_pdf_path"] = tmp_path
 
-        # Base64 인코딩
         with open(tmp_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode("utf-8")
-
-        # 브라우저 새 탭 열기용 링크 렌더링
-        st.markdown(
-            f'''
-            <a href="data:application/pdf;base64,{base64_pdf}" target="_blank"
-               style="display:inline-block; padding:0.5em 1em;
-                      background-color:#f0f0f0; color:#333; text-decoration:none;
-                      border-radius:5px; font-weight:bold;">
-                🌐 브라우저 새 탭에서 PDF 열기
-            </a>
-            ''',
-            unsafe_allow_html=True
-        )
+            st.download_button(
+                label="🌐 브라우저 새 탭에서 PDF 열기",
+                data=f,
+                file_name="uploaded.pdf",
+                mime="application/pdf"
+            )
     else:
         st.info("📄 PDF 파일을 업로드하면 브라우저로 열 수 있습니다.")
 
