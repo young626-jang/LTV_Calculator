@@ -78,11 +78,13 @@ def process_pdf(uploaded_file):
 def floor_to_unit(value, unit=100):
     return value // unit * unit
 
-def pdf_to_image(file_path, page_num):
-    doc = fitz.open(file_path)
+def pdf_to_image(file, page_num):
+    file.seek(0)  # ✅ 반드시 필요!
+    doc = fitz.open(stream=file.read(), filetype="pdf")
     page = doc.load_page(page_num)
     pix = page.get_pixmap()
     return pix.tobytes("png")
+
 
 def format_with_comma(key):
     raw = st.session_state.get(key, "")
