@@ -3,6 +3,9 @@ import os
 import fitz  # PyMuPDF
 import re
 from ltv_map import region_map
+import subprocess
+import sys
+import webbrowser
 
 st.set_page_config(page_title="LTV 계산기", layout="wide")
 st.title("🏠 LTV 계산기 (주소+면적추출)")
@@ -158,18 +161,19 @@ if uploaded_file is not None:
 
     # 📸 PDF 1페이지 미리보기 표시
     img_data = pdf_to_image(uploaded_file, page_num=0)
-    st.image(img_data, caption="📄 1페이지 미리보기", use_column_width=True)
+    st.image(img_data, caption="📄 1페이지 미리보기", use_container_width=True)
 
     # 🖥 외부 뷰어 열기 버튼 (윈도우 환경에서만 작동)
-    if st.button("📂 외부 PDF 뷰어로 열기"):
+    def open_pdf_viewer(filepath):
         try:
-            # 파일을 임시 저장 후 os.startfile로 오픈
-            tmp_path = f"temp_{uploaded_file.name}"
-            with open(tmp_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            os.startfile(tmp_path)
+            if sys.platform.startswith("win"):
+                os.startfile(filepath)
+            elif sys.platform.startswith("darwin"):  # macOS
+                subprocess.call(["open", filepath])
+            else:  # Linux
+                subprocess.call(["xdg-open", filepath])
         except Exception as e:
-            st.error(f"뷰어 열기 실패: {e}")
+            st.error(f"❌ 뷰어 열기 실패: {e}")
 
     # 🔗 외부 링크 경고
     if external_links:
