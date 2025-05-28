@@ -190,31 +190,6 @@ if uploaded_file:
         f"🔢 현재 페이지 범위: {page_index + 1} - {min(page_index + 2, total_pages)} / 총 {total_pages}페이지"
     )
 
-    # ✅ 버튼 라인: KB시세 / 하우스머치 / PDF 뷰어
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        if st.button("📍 KB 시세 조회"):
-            st.components.v1.html("<script>window.open('https://kbland.kr/map','_blank')</script>", height=0)
-
-    with col2:
-        if st.button("📊 하우스머치 시세조회"):
-            st.components.v1.html("<script>window.open('https://www.howsmuch.com','_blank')</script>", height=0)
-
-    with col3:
-        if platform.system() == "Windows":
-            if st.button("📂 뷰어로 열기"):
-                import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                    tmp_file.write(uploaded_file.getbuffer())
-                    tmp_path = tmp_file.name
-                try:
-                    os.startfile(tmp_path)  # 기본 PDF 뷰어로 열기 (Adobe 포함)
-                except Exception as e:
-                    st.error(f"뷰어 열기 실패: {e}")
-        else:
-            st.info("🔒 '뷰어로 열기'는 Windows에서만 지원됩니다.")
-
     # ✅ 이전 / 다음 페이지 버튼 (화면 하단)
     col_prev, col_spacer, col_next = st.columns([1, 2, 1])
     with col_prev:
@@ -229,9 +204,6 @@ if uploaded_file:
         st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
         for uri in external_links:
             st.code(uri)
-
-
-
 
 # ------------------------------
 # 🔹 입력 UI
@@ -273,7 +245,12 @@ if floor_num is not None:
 # 🔹 버튼 & 지역 설정
 # ------------------------------
 
-col1, col2 = st.columns(2)
+# ------------------------------
+# 🔹 버튼 & 지역 설정
+# ------------------------------
+
+col1, col2, col3 = st.columns(3)
+
 with col1:
     if st.button("KB 시세 조회"):
         st.components.v1.html("<script>window.open('https://kbland.kr/map','_blank')</script>", height=0)
@@ -282,11 +259,35 @@ with col2:
     if st.button("하우스머치 시세조회"):
         st.components.v1.html("<script>window.open('https://www.howsmuch.com','_blank')</script>", height=0)
 
+# ✅ 외부 PDF 뷰어 열기 버튼 - Windows 전용
+with col3:
+    if uploaded_file:
+        if platform.system() == "Windows":
+            if st.button("📂 뷰어로 열기"):
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                    tmp_file.write(uploaded_file.getbuffer())
+                    tmp_path = tmp_file.name
+                try:
+                    os.startfile(tmp_path)
+                except Exception as e:
+                    st.error(f"뷰어 열기 실패: {e}")
+        else:
+            st.info("🔒 '뷰어로 열기'는 Windows에서만 지원됩니다.")
+
+# ✅ 방공제 지역 및 금액 설정
 col1, col2 = st.columns(2)
 region = col1.selectbox("방공제 지역 선택", [""] + list(region_map.keys()))
 default_d = region_map.get(region, 0)
 manual_d = col2.text_input("방공제 금액 (만)", f"{default_d:,}")
-deduction = int(re.sub(r"[^\d]", "", manual_d)) if manual_d else default_d
+
+# 🔒 항상 deduction 값이 존재하도록 설정
+deduction = default_d
+if manual_d:
+    try:
+        deduction = int(re.sub(r"[^\d]", "", manual_d))
+    except:
+        deduction = default_d
 
 # ------------------------------
 # 🔹 LTV 입력
