@@ -86,10 +86,8 @@ def process_pdf(uploaded_file):
 def floor_to_unit(value, unit=100):
     return value // unit * unit
 
-
-def pdf_to_image(pdf_file, page_num, zoom=2.0):
-    pdf_file.seek(0)
-    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+def pdf_to_image(pdf_path, page_num, zoom=2.0):
+    doc = fitz.open(pdf_path)
     if page_num >= len(doc):
         return None
     page = doc.load_page(page_num)
@@ -152,13 +150,10 @@ for key in ["extracted_address", "extracted_area", "raw_price", "co_owners", "ex
     if key not in st.session_state:
         st.session_state[key] = "" if key != "co_owners" else []
 
-# ------------------------------
-# 🔹 PDF 업로드 및 처리
-# ------------------------------
 uploaded_file = st.file_uploader("📎 PDF 파일 업로드", type="pdf")
 
 if uploaded_file:
-    # ✅ 추출 및 세션 저장
+    # 1. PDF 텍스트 추출 및 메타정보 세션 저장
     text, external_links, address, area, floor, co_owners = process_pdf(uploaded_file)
     st.session_state["extracted_address"] = address
     st.session_state["extracted_area"] = area
@@ -166,18 +161,24 @@ if uploaded_file:
     st.session_state["co_owners"] = co_owners
     st.success(f"📍 PDF에서 주소 추출: {address}")
 
-    # ✅ 페이지 수 확인용 초기화
-    uploaded_file.seek(0)
-    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-    total_pages = len(doc)
-    uploaded_file.seek(0)
+    # 2. 임시 PDF 파일 저장 (한번만)
+    if "uploaded_pdf_path" not in st.session_state:
+        uploaded_file.seek(0)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.getbuffer())
+            st.session_state["uploaded_pdf_path"] = tmp_file.name
 
+    pdf_path = st.session_state["uploaded_pdf_path"]
+    doc = fitz.open(pdf_path)
+    total_pages = len(doc)
+
+    # 3. 페이지 인덱스 세션 초기화
     if "page_index" not in st.session_state:
         st.session_state.page_index = 0
     page_index = st.session_state.page_index
 
-    # ✅ 이전 / 다음 페이지 버튼 (화면 하단)
-    col_prev, col_spacer, col_next = st.columns([1, 2, 1])
+    # 4. 이전/다음 버튼
+    col_prev, _, col_next = st.columns([1, 2, 1])
     with col_prev:
         if st.button("⬅️ 이전 페이지") and page_index >= 2:
             st.session_state.page_index -= 2
@@ -185,7 +186,7 @@ if uploaded_file:
         if st.button("➡️ 다음 페이지") and page_index + 2 < total_pages:
             st.session_state.page_index += 2
 
-    # ✅ 외부 링크 경고
+    # 5. 외부 링크 경고
     if external_links:
         st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
         for uri in external_links:
@@ -241,42 +242,33 @@ with col2:
     if st.button("하우스머치 시세조회"):
         st.components.v1.html("<script>window.open('https://www.howsmuch.com','_blank')</script>", height=0)
 
-# ✅ 외부 PDF 뷰어 열기 버튼 - Windows 전용
 with col3:
-    system_name = platform.system()
     if uploaded_file:
-        # ✅ 1. 로컬 앱으로 열기 (Windows 한정)
-        if system_name.lower().startswith("win"):
-            if st.button("📂 로컬 뷰어로 열기"):
-                import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                    tmp_file.write(uploaded_file.getbuffer())
-                    tmp_path = tmp_file.name
-                try:
-                    os.startfile(tmp_path)
-                except Exception as e:
-                    st.error(f"❌ 뷰어 열기 실패: {e}")
-        
-        # ✅ 2. 브라우저 새 탭에서 열기 (모든 OS)
-        import base64, tempfile
+        uploaded_file.seek(0)  # ✅ PDF 스트림 초기화
+
+        # PDF를 임시로 저장
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
             tmp_file.write(uploaded_file.getbuffer())
             tmp_path = tmp_file.name
 
+        # Base64 인코딩
         with open(tmp_path, "rb") as f:
             base64_pdf = base64.b64encode(f.read()).decode("utf-8")
 
-        # 브라우저에서 새 탭 열기용 링크 렌더링
+        # 브라우저 새 탭 열기용 링크 렌더링
         st.markdown(
             f'''
-            <a href="data:application/pdf;base64,{base64_pdf}" target="_blank" style="font-size:16px; text-decoration:none;">
-                🌐 브라우저로 보기
+            <a href="data:application/pdf;base64,{base64_pdf}" target="_blank"
+               style="display:inline-block; padding:0.5em 1em;
+                      background-color:#f0f0f0; color:#333; text-decoration:none;
+                      border-radius:5px; font-weight:bold;">
+                🌐 브라우저 새 탭에서 PDF 열기
             </a>
             ''',
             unsafe_allow_html=True
         )
     else:
-        st.info("🔒 PDF 파일이 업로드되면 보기 기능이 활성화됩니다.")
+        st.info("📄 PDF 파일을 업로드하면 브라우저로 열 수 있습니다.")
 
 # ✅ 방공제 지역 및 금액 설정
 col1, col2 = st.columns(2)
