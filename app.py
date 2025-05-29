@@ -402,9 +402,11 @@ else:
         return limit, available
 
     for ltv in ltv_selected:
-        if ltv:
-            limit_senior_dict[ltv] = calculate_ltv(total_value, deduction, sum_dh + sum_sm, 0, ltv, is_senior=True)
+        if sum_maintain > 0:
             limit_sub_dict[ltv] = calculate_ltv(total_value, deduction, sum_sub_principal, sum_maintain, ltv, is_senior=False)
+        else:
+            limit_senior_dict[ltv] = calculate_ltv(total_value, deduction, sum_dh + sum_sm, 0, ltv, is_senior=True)
+
 
 # ------------------------------
 # 🔹 결과 출력
@@ -443,7 +445,7 @@ st.text_area("결과 내용", value=text_to_copy, height=320)
 # 🔹 수수료 계산기
 # ------------------------------
 st.markdown("---")
-st.markdown("### 💰 수수료 계산기")
+st.markdown("### 수수료 계산기")
 
 import re
 
@@ -482,7 +484,7 @@ total_fee = consult_fee + bridge_fee
 
 # 출력
 st.markdown(f"""
-#### 💸 수수료 합계: **{total_fee:,}만원**
+#### 수수료 합계: **{total_fee:,}만원**
 - 컨설팅 수수료: {consult_fee:,}만원
 - 브릿지 수수료: {bridge_fee:,}만원
 """)
