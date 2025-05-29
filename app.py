@@ -324,15 +324,8 @@ with col2:
         st.components.v1.html("<script>window.open('https://www.howsmuch.com','_blank')</script>", height=0)
 
 with col3:
-    uploaded_file = st.file_uploader("📄 PDF 업로드", type=["pdf"])
-    if uploaded_file:
-        uploaded_file.seek(0)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            tmp_file.write(uploaded_file.getbuffer())
-            tmp_path = tmp_file.name
-            st.session_state["uploaded_pdf_path"] = tmp_path
-
-        with open(tmp_path, "rb") as f:
+    if "uploaded_pdf_path" in st.session_state:
+        with open(st.session_state["uploaded_pdf_path"], "rb") as f:
             st.download_button(
                 label="🌐 브라우저 새 탭에서 PDF 열기",
                 data=f,
@@ -340,7 +333,7 @@ with col3:
                 mime="application/pdf"
             )
     else:
-        st.info("📄 PDF 파일을 업로드하면 브라우저로 열 수 있습니다.")
+        st.info("📄 먼저 PDF 파일을 업로드해 주세요.")
 
 # ------------------------------
 # 🔹 LTV 입력
