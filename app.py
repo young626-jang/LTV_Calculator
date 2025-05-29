@@ -319,27 +319,44 @@ items = []
 
 for i in range(rows):
     cols = st.columns(5)
+
+    # 설정자 입력
     lender = cols[0].text_input("설정자", key=f"lender_{i}")
+
+    # 채권최고액 입력
     max_amt_key = f"maxamt_{i}"
     cols[1].text_input("채권최고액 (만)", key=max_amt_key, on_change=format_with_comma, args=(max_amt_key,))
-    ratio = cols[2].text_input("설정비율 (%)", "120", key=f"ratio_{i}")
 
-    try:
-        calc = int(re.sub(r"[^\d]", "", st.session_state.get(max_amt_key, "0")) or 0) * 100 // int(ratio or 100)
-    except:
-        calc = 0
+    # 설정비율 입력
+    ratio_key = f"ratio_{i}"
+    ratio = cols[2].text_input("설정비율 (%)", "120", key=ratio_key)
 
+    # 원금 자동 계산 후 세션에 저장 (최초 1회만)
     principal_key = f"principal_{i}"
-    cols[3].text_input("원금", key=principal_key, value=f"{calc:,}", on_change=format_with_comma, args=(principal_key,))
+    if principal_key not in st.session_state:
+        try:
+            max_amt_val = int(re.sub(r"[^\d]", "", st.session_state.get(max_amt_key, "0")) or 0)
+            ratio_val = int(st.session_state.get(ratio_key, "120") or 100)
+            calc = max_amt_val * 100 // ratio_val
+        except:
+            calc = 0
+        st.session_state[principal_key] = f"{calc:,}"
+
+    # 원금 입력 필드 (value 없이 key만 사용 → 경고 제거)
+    cols[3].text_input("원금", key=principal_key, on_change=format_with_comma, args=(principal_key,))
+
+    # 진행구분 선택
     status = cols[4].selectbox("진행구분", ["유지", "대환", "선말소"], key=f"status_{i}")
 
+    # 항목 수집
     items.append({
         "설정자": lender,
         "채권최고액": st.session_state.get(max_amt_key, ""),
-        "설정비율": ratio,
+        "설정비율": st.session_state.get(ratio_key, ""),
         "원금": st.session_state.get(principal_key, ""),
         "진행구분": status
     })
+    
 # ------------------------------
 # 🔹 LTV 계산부
 # ------------------------------
