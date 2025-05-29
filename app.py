@@ -21,6 +21,7 @@ from history_manager import (
     ARCHIVE_FILE
 )
 
+
 # ─────────────────────────────
 # 🏠 상단 타이틀 + 고객 이력 불러오기
 # ─────────────────────────────
@@ -33,29 +34,6 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-col1, col2, col3 = st.columns([1, 1, 1])
-
-with col1:
-    customer_list = get_customer_options()
-    selected_from_list = st.selectbox("📂 고객 이력", [""] + list(customer_list), key="load_customer_select")
-
-with col2:
-    st.markdown("#### ")  # ← 마진 조절
-    if st.button("🔄 고객 불러오기"):
-        if selected_from_list:
-            load_customer_input(selected_from_list)
-            st.experimental_rerun()
-
-with col3:
-    if st.session_state.get("deleted_data_ready", False):
-        if os.path.exists(ARCHIVE_FILE):
-            with open(ARCHIVE_FILE, "rb") as f:
-                st.download_button(
-                    label="📥 삭제된 이력 다운로드",
-                    data=f,
-                    file_name=ARCHIVE_FILE,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
 # ------------------------------
 # 🔹 텍스트 기반 추출 함수들
 # ------------------------------
@@ -252,26 +230,51 @@ if uploaded_file:
             st.code(uri)
 
 # ------------------------------
-# 🔹 주소 및 고객명 입력
+# 🔹 주소 및 고객명 UI
 # ------------------------------
-st.header("📄 기본 정보 입력")
+st.markdown("---")
+st.subheader("📂 고객 이력")
 
-col1, col2 = st.columns(2)
-with col1:
+row1_col1, row1_col2, row1_col3 = st.columns([1, 1, 1])
+
+with row1_col1:
+    customer_list = get_customer_options()
+    selected_from_list = st.selectbox("고객 선택", [""] + list(customer_list), key="load_customer_select")
+
+with row1_col2:
+    st.markdown("       ")  # 마진 조절용
+    if st.button("🔄 불러오기"):
+        if selected_from_list:
+            load_customer_input(selected_from_list)
+            st.experimental_rerun()
+
+with row1_col3:
+    if st.session_state.get("deleted_data_ready", False):
+        if os.path.exists(ARCHIVE_FILE):
+            with open(ARCHIVE_FILE, "rb") as f:
+                st.download_button(
+                    label="📥 삭제된 이력 다운로드",
+                    data=f,
+                    file_name=ARCHIVE_FILE,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+
+# ------------------------------
+# 🔹 기본 정보 입력
+# ------------------------------
+st.subheader("📄 기본 정보 입력")
+
+info_col1, info_col2 = st.columns(2)
+
+with info_col1:
     address_input = st.text_input("주소", st.session_state["extracted_address"], key="address_input")
-with col2:
+
+with info_col2:
     co_owners = st.session_state.get("co_owners", [])
     default_name_text = "  ".join([f"{name} - {birth}" for name, birth in co_owners]) if co_owners else ""
     customer_name = st.text_input("고객명", default_name_text, key="customer_name")
 
-# ------------------------------
-# 🔹 입력 UI 재배치 (요청 반영!)
-# ------------------------------
 
-st.markdown("---")
-st.subheader("📌 시세 및 공제 정보")
-
-# 🔸 1줄: 방공제 지역 | 방공제 금액
 col1, col2 = st.columns(2)
 with col1:
     region = st.selectbox("방공제 지역 선택", [""] + list(region_map.keys()))
@@ -280,7 +283,6 @@ with col1:
 with col2:
     manual_d = st.text_input("방공제 금액 (만)", f"{default_d:,}")
 
-# 🔸 2줄: KB 시세 | 전용면적
 col3, col4 = st.columns(2)
 with col3:
     raw_price_input = st.text_input("KB 시세 (만원)", value=st.session_state.get("raw_price", "0"), key="raw_price_input")
@@ -311,9 +313,6 @@ if floor_num is not None:
 # ------------------------------
 # 🔹 시세 버튼 및 PDF 처리
 # ------------------------------
-st.markdown("---")
-st.subheader("🔎 시세 정보 & PDF 처리")
-
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -339,10 +338,18 @@ with col3:
 # ------------------------------
 # 🔹 LTV 입력
 # ------------------------------
+st.markdown("---")
+st.subheader("📌 LTV 비율 입력")
 
-raw_ltv1 = col1.text_input("LTV 비율 ①", "80")
-raw_ltv2 = col2.text_input("LTV 비율 ②", "")
+ltv_col1, ltv_col2 = st.columns(2)
 
+with ltv_col1:
+    raw_ltv1 = st.text_input("LTV 비율 ① (%)", "80")
+
+with ltv_col2:
+    raw_ltv2 = st.text_input("LTV 비율 ② (%)", "")
+
+# 선택값 정리
 ltv_selected = []
 for val in [raw_ltv1, raw_ltv2]:
     try:
@@ -350,8 +357,8 @@ for val in [raw_ltv1, raw_ltv2]:
         if 1 <= v <= 100:
             ltv_selected.append(v)
     except:
-        continue  # 숫자 외 입력 무시
-ltv_selected = list(dict.fromkeys(ltv_selected))  # 중복만 제거
+        continue
+ltv_selected = list(dict.fromkeys(ltv_selected))  # 중복 제거
 
 # ------------------------------
 # 🔹 대출 항목 입력
