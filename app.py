@@ -419,9 +419,14 @@ text_to_copy += f"{type_of_price} | KB시세: {raw_price_input}만 | 전용면�
 if valid_items:
     text_to_copy += "\n대출 항목\n"
     for item in valid_items:
-        max_amt = int(re.sub(r"[^\d]", "", item.get("채권최고액", "0")))
-        principal_amt = int(re.sub(r"[^\d]", "", item.get("원금", "0")))
+        raw_max = re.sub(r"[^\d]", "", item.get("채권최고액", "0"))
+        max_amt = int(raw_max) if raw_max else 0
+
+        raw_principal = re.sub(r"[^\d]", "", item.get("원금", "0"))
+        principal_amt = int(raw_principal) if raw_principal else 0
+
         text_to_copy += f"{item.get('설정자', '')} | 채권최고액: {max_amt:,} | 비율: {item.get('설정비율', '0')}% | 원금: {principal_amt:,} | {item.get('진행구분', '')}\n"
+
 
 for ltv in ltv_selected:
     if ltv in limit_senior_dict:
