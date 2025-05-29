@@ -68,7 +68,7 @@ def extract_all_names_and_births(text):
         if re.match(r"[가-힣]+ \(공유자\)|[가-힣]+ \(소유자\)", lines[i]):
             name = re.match(r"([가-힣]+)", lines[i]).group(1)
             if i + 1 < len(lines):
-                birth_match = re.match(r"(\d{6})", lines[i + 1])
+                birth_match = re.match(r"(\d{6})-", lines[i + 1])
                 if birth_match:
                     birth = birth_match.group(1)
                     result.append((name, birth))
@@ -271,7 +271,7 @@ with info_col1:
 
 with info_col2:
     co_owners = st.session_state.get("co_owners", [])
-    default_name_text = "  ".join([f"{name} - {birth}" for name, birth in co_owners]) if co_owners else ""
+    default_name_text = "  ".join([f"{name}  {birth}" for name, birth in co_owners]) if co_owners else ""
     customer_name = st.text_input("고객명", default_name_text, key="customer_name")
 
 
