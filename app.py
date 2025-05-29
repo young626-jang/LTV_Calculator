@@ -68,7 +68,7 @@ def extract_all_names_and_births(text):
         if re.match(r"[가-힣]+ \(공유자\)|[가-힣]+ \(소유자\)", lines[i]):
             name = re.match(r"([가-힣]+)", lines[i]).group(1)
             if i + 1 < len(lines):
-                birth_match = re.match(r"(\d{6})-", lines[i + 1])
+                birth_match = re.match(r"(\d{6})", lines[i + 1])
                 if birth_match:
                     birth = birth_match.group(1)
                     result.append((name, birth))
