@@ -232,20 +232,16 @@ if uploaded_file:
 # ------------------------------
 # 🔹 주소 및 고객명 UI
 # ------------------------------
-st.markdown("---")
-st.subheader("📂 고객 이력")
-
 row1_col1, row1_col2, row1_col3 = st.columns([1, 1, 1])
 
 with row1_col1:
     customer_list = get_customer_options()
     selected_from_list = st.selectbox("고객 선택", [""] + list(customer_list), key="load_customer_select")
 
-if st.button("🔄 불러오기"):
-    selected = st.session_state.get("load_customer_select")
-    if selected:
-        load_customer_input(selected)
-        st.experimental_rerun()
+# ✅ 선택 즉시 불러오기
+if selected_from_list:
+    load_customer_input(selected_from_list)
+    st.success(f"✅ {selected_from_list}님의 데이터가 불러와졌습니다.")
 
 with row1_col3:
     if st.session_state.get("deleted_data_ready", False):
@@ -257,7 +253,6 @@ with row1_col3:
                     file_name=ARCHIVE_FILE,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
-
 # ------------------------------
 # 🔹 기본 정보 입력
 # ------------------------------
