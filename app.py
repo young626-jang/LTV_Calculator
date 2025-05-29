@@ -1,3 +1,60 @@
+import streamlit as st
+import os
+import fitz  # PyMuPDF
+import re
+from ltv_map import region_map
+import subprocess
+import sys
+import webbrowser
+import platform
+import streamlit as st
+import base64
+import tempfile
+import pandas as pd
+import streamlit as st
+import os
+from history_manager import (
+    get_customer_options,
+    load_customer_input,
+    cleanup_old_history,
+    search_customers_by_keyword,
+    ARCHIVE_FILE
+)
+
+# ─────────────────────────────
+# 🏠 상단 타이틀 + 고객 이력 불러오기
+# ─────────────────────────────
+
+# ✅ 페이지 설정 (페이지 탭 이름 + 아이콘)
+st.set_page_config(
+    page_title="LTV 계산기",
+    page_icon="📊",  # 또는 💰, 🧮, 🏦 등 원하는 이모지 가능
+    layout="wide",  # ← 화면 전체 너비로 UI 확장
+    initial_sidebar_state="auto"
+)
+
+col1, col2, col3 = st.columns([1, 1, 1])
+
+with col1:
+    customer_list = get_customer_options()
+    selected_from_list = st.selectbox("📂 고객 이력", [""] + list(customer_list), key="load_customer_select")
+
+with col2:
+    if st.button("🔄 고객 불러오기"):
+        if selected_from_list:
+            load_customer_input(selected_from_list)
+            st.experimental_rerun()
+
+with col3:
+    if st.session_state.get("deleted_data_ready", False):
+        if os.path.exists(ARCHIVE_FILE):
+            with open(ARCHIVE_FILE, "rb") as f:
+                st.download_button(
+                    label="📥 삭제된 이력 다운로드",
+                    data=f,
+                    file_name=ARCHIVE_FILE,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 # ------------------------------
 # 🔹 텍스트 기반 추출 함수들
 # ------------------------------
