@@ -40,6 +40,7 @@ with col1:
     selected_from_list = st.selectbox("📂 고객 이력", [""] + list(customer_list), key="load_customer_select")
 
 with col2:
+    st.markdown("#### ")  # ← 마진 조절
     if st.button("🔄 고객 불러오기"):
         if selected_from_list:
             load_customer_input(selected_from_list)
