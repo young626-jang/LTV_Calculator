@@ -241,12 +241,11 @@ with row1_col1:
     customer_list = get_customer_options()
     selected_from_list = st.selectbox("고객 선택", [""] + list(customer_list), key="load_customer_select")
 
-with row1_col2:
-    st.markdown("       ")  # 마진 조절용
-    if st.button("🔄 불러오기"):
-        if selected_from_list:
-            load_customer_input(selected_from_list)
-            st.experimental_rerun()
+if st.button("🔄 불러오기"):
+    selected = st.session_state.get("load_customer_select")
+    if selected:
+        load_customer_input(selected)
+        st.experimental_rerun()
 
 with row1_col3:
     if st.session_state.get("deleted_data_ready", False):
