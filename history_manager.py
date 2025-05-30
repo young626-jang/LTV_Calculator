@@ -7,6 +7,26 @@ LOGFILE = "ltv_input_history.csv"
 ARCHIVE_FILE = "deleted_ltv_history.xlsx"
 
 # ────────────────────────────────
+# ✅ 고객 이력 불러오기
+# ────────────────────────────────
+def load_customer_input(name):
+    if not os.path.exists(LOGFILE):
+        return
+
+    df = pd.read_csv(LOGFILE)
+    row = df[df["고객명"] == name].sort_values("날짜", ascending=False).head(1)
+
+    if not row.empty:
+        r = row.iloc[0]
+        st.session_state["customer_name"] = r["고객명"]
+        st.session_state["address_input"] = r["주소"]
+        st.session_state["raw_price_input"] = str(r["KB시세"])
+        st.session_state["area_input"] = str(r["면적"])
+        st.session_state["raw_ltv1"] = str(r["LTV1"])
+        st.session_state["raw_ltv2"] = str(r["LTV2"])
+        st.success(f"✅ {name}님의 입력 이력이 로드되었습니다.")
+
+# ────────────────────────────────
 # ✅ 고객 이력 저장
 # ────────────────────────────────
 def save_user_input(overwrite=False):
@@ -17,8 +37,7 @@ def save_user_input(overwrite=False):
         "KB시세": st.session_state.get("raw_price_input", ""),
         "면적": st.session_state.get("area_input", ""),
         "LTV1": st.session_state.get("raw_ltv1", ""),
-        "LTV2": st.session_state.get("raw_ltv2", ""),
-        "결과내용": st.session_state.get("text_to_copy", "")
+        "LTV2": st.session_state.get("raw_ltv2", "")
     }
 
     if not record["고객명"] or not record["주소"]:
@@ -33,29 +52,6 @@ def save_user_input(overwrite=False):
     df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
     df.to_csv(LOGFILE, index=False, encoding="utf-8-sig")
     st.success("✅ 저장되었습니다.")
-
-# ────────────────────────────────
-# ✅ 고객 이력 불러오기
-# ────────────────────────────────
-def load_customer_input(name: str) -> bool:
-    if not os.path.exists(LOGFILE):
-        return False
-
-    df = pd.read_csv(LOGFILE)
-    row = df[df["고객명"] == name].sort_values("날짜", ascending=False).head(1)
-    if row.empty:
-        return False
-
-    r = row.iloc[0]
-    st.session_state["customer_name"] = r.get("고객명", "")
-    st.session_state["address_input"] = r.get("주소", "")
-    st.session_state["raw_price_input"] = str(r.get("KB시세", ""))
-    st.session_state["area_input"] = str(r.get("면적", ""))
-    st.session_state["raw_ltv1"] = str(r.get("LTV1", ""))
-    st.session_state["raw_ltv2"] = str(r.get("LTV2", ""))
-    st.session_state["text_to_copy"] = str(r.get("결과내용", ""))
-    st.success(f"✅ '{name}'님의 최근 이력을 불러왔습니다.")
-    return True
 
 # ────────────────────────────────
 # ✅ 고객명 목록 가져오기
@@ -83,8 +79,14 @@ def cleanup_old_history(days=30):
     if not os.path.exists(LOGFILE):
         return
 
-    df = pd.read_csv(LOGFILE, parse_dates=["날짜"])
-    df["날짜"] = pd.to_datetime(df["날짜"], errors="coerce")
+    df = pd.read_csv(LOGFILE)
+
+    # ⛑ 날짜 포맷 명시 (NaT 방지)
+    df["날짜"] = pd.to_datetime(df["날짜"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+
+    # ❗ 파싱 실패한 행 경고 (선택적)
+    if df["날짜"].isnull().any():
+        st.warning("❗ 일부 고객 이력의 날짜를 인식하지 못해 삭제될 수 있습니다.")
 
     cutoff = datetime.now() - timedelta(days=days)
     deleted_df = df[df["날짜"] < cutoff]
