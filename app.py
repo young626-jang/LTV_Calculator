@@ -17,10 +17,9 @@ from history_manager import (
     get_customer_options,
     load_customer_input,
     cleanup_old_history,
-    search_customers_by_keyword,
-    ARCHIVE_FILE
+    search_customers_by_keyword
+    # 🔴 ARCHIVE_FILE 제거! 더 이상 필요 없음
 )
-
 # ─────────────────────────────
 # 🏠 상단 타이틀 + 고객 이력 불러오기
 # ─────────────────────────────
