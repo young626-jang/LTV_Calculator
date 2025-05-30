@@ -1,19 +1,62 @@
-import streamlit as st
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
+import streamlit as st
 
-LOGFILE = "ltv_input_history.csv"
-ARCHIVE_FILE = "deleted_ltv_history.xlsx"
+# ─────────────────────────────
+# 🔐 Google Sheets 인증 및 시트 접근
+# ─────────────────────────────
+def get_sheet():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("gspread_key.json", scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("ltv_input_history").sheet1  # 시트 이름 및 인덱스
+    return sheet
 
-# ────────────────────────────────
-# ✅ 고객 이력 불러오기
-# ────────────────────────────────
+# ─────────────────────────────
+# 💾 고객 입력 저장 (Google Sheets)
+# ─────────────────────────────
+def save_user_input(overwrite=False):
+    sheet = get_sheet()
+
+    record = [
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        st.session_state.get("customer_name", "").strip(),
+        st.session_state.get("address_input", "").strip(),
+        st.session_state.get("raw_price_input", ""),
+        st.session_state.get("area_input", ""),
+        st.session_state.get("raw_ltv1", ""),
+        st.session_state.get("raw_ltv2", "")
+    ]
+
+    if not record[1] or not record[2]:
+        return  # 고객명 or 주소 없으면 저장하지 않음
+
+    # 시트 읽기
+    data = sheet.get_all_values()
+    headers = data[0] if data else ["날짜", "고객명", "주소", "KB시세", "면적", "LTV1", "LTV2"]
+    rows = data[1:] if len(data) > 1 else []
+
+    if overwrite:
+        rows = [row for row in rows if not (row[1] == record[1] and row[2] == record[2])]
+        sheet.clear()
+        sheet.append_row(headers)
+        for row in rows:
+            sheet.append_row(row)
+
+    sheet.append_row(record)
+
+# ─────────────────────────────
+# 📂 고객명으로 최근 입력 불러오기
+# ─────────────────────────────
 def load_customer_input(name):
-    if not os.path.exists(LOGFILE):
+    sheet = get_sheet()
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+    if df.empty:
         return
 
-    df = pd.read_csv(LOGFILE)
     row = df[df["고객명"] == name].sort_values("날짜", ascending=False).head(1)
 
     if not row.empty:
@@ -26,76 +69,29 @@ def load_customer_input(name):
         st.session_state["raw_ltv2"] = str(r["LTV2"])
         st.success(f"✅ {name}님의 입력 이력이 로드되었습니다.")
 
-# ────────────────────────────────
-# ✅ 고객 이력 저장
-# ────────────────────────────────
-def save_user_input(overwrite=False):
-    record = {
-        "날짜": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "고객명": st.session_state.get("customer_name", "").strip(),
-        "주소": st.session_state.get("address_input", "").strip(),
-        "KB시세": st.session_state.get("raw_price_input", ""),
-        "면적": st.session_state.get("area_input", ""),
-        "LTV1": st.session_state.get("raw_ltv1", ""),
-        "LTV2": st.session_state.get("raw_ltv2", "")
-    }
-
-    if not record["고객명"] or not record["주소"]:
-        st.warning("⚠️ 고객명과 주소는 필수입니다.")
-        return
-
-    df = pd.read_csv(LOGFILE) if os.path.exists(LOGFILE) else pd.DataFrame()
-
-    if overwrite:
-        df = df[~((df["고객명"] == record["고객명"]) & (df["주소"] == record["주소"]))]
-
-    df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
-    df.to_csv(LOGFILE, index=False, encoding="utf-8-sig")
-    st.success("✅ 저장되었습니다.")
-
-# ────────────────────────────────
-# ✅ 고객명 목록 가져오기
-# ────────────────────────────────
+# ─────────────────────────────
+# 🧾 고객명 리스트 추출
+# ─────────────────────────────
 def get_customer_options():
-    if not os.path.exists(LOGFILE):
-        return []
-    df = pd.read_csv(LOGFILE)
+    sheet = get_sheet()
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
     return sorted(df["고객명"].dropna().unique())
 
-# ────────────────────────────────
-# ✅ 고객명 검색 (부분일치)
-# ────────────────────────────────
+# ─────────────────────────────
+# 🔍 고객명 키워드 검색
+# ─────────────────────────────
 def search_customers_by_keyword(keyword):
-    if not os.path.exists(LOGFILE) or not keyword:
+    sheet = get_sheet()
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+    if not keyword:
         return []
-    df = pd.read_csv(LOGFILE)
     matches = df[df["고객명"].str.contains(keyword, na=False)]
     return sorted(matches["고객명"].dropna().unique())
 
-# ────────────────────────────────
-# ✅ 오래된 이력 정리 및 백업
-# ────────────────────────────────
+# ─────────────────────────────
+# 🧹 오래된 이력 정리 (권장 X)
+# ─────────────────────────────
 def cleanup_old_history(days=30):
-    if not os.path.exists(LOGFILE):
-        return
-
-    df = pd.read_csv(LOGFILE)
-
-    # ⛑ 날짜 포맷 명시 (NaT 방지)
-    df["날짜"] = pd.to_datetime(df["날짜"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
-
-    # ❗ 파싱 실패한 행 경고 (선택적)
-    if df["날짜"].isnull().any():
-        st.warning("❗ 일부 고객 이력의 날짜를 인식하지 못해 삭제될 수 있습니다.")
-
-    cutoff = datetime.now() - timedelta(days=days)
-    deleted_df = df[df["날짜"] < cutoff]
-    kept_df = df[df["날짜"] >= cutoff]
-
-    if not deleted_df.empty:
-        deleted_df.to_excel(ARCHIVE_FILE, index=False)
-        st.session_state["deleted_data_ready"] = True
-    else:
-        st.session_state["deleted_data_ready"] = False
-
-    kept_df.to_csv(LOGFILE, index=False, encoding="utf-8-sig")
+    st.info("📌 현재는 Google Sheets 사용 중이므로 자동 삭제보다는 시트에서 수동 정리를 권장합니다.")
