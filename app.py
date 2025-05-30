@@ -1,18 +1,18 @@
-import streamlit as st
 import os
-import fitz  # PyMuPDF
 import re
-from ltv_map import region_map
-import subprocess
 import sys
-import webbrowser
-import platform
-import streamlit as st
 import base64
 import tempfile
+import subprocess
+import webbrowser
+import platform
+from datetime import datetime
+
+import fitz  # PyMuPDF
 import pandas as pd
 import streamlit as st
-import os
+
+from ltv_map import region_map
 from history_manager import (
     get_customer_options,
     load_customer_input,
@@ -20,7 +20,6 @@ from history_manager import (
     search_customers_by_keyword,
     ARCHIVE_FILE
 )
-
 
 # ─────────────────────────────
 # 🏠 상단 타이틀 + 고객 이력 불러오기
