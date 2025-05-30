@@ -1,0 +1,7 @@
+# Google 인증 키파일 - 올리면 안 됨!
+gspread_key.json
+
+# 기타 무시할 항목들
+__pycache__/
+*.pyc
+.env
