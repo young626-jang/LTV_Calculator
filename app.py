@@ -7,6 +7,7 @@ import subprocess
 import webbrowser
 import platform
 from datetime import datetime
+from notion_client import Client  # Notion SDK
 
 import fitz  # PyMuPDF
 import pandas as pd
