@@ -222,7 +222,7 @@ if uploaded_file:
         if st.button("➡️ 다음 페이지") and page_index + 2 < total_pages:
             st.session_state.page_index += 2
 
-    # 56. 외부 링크 경고
+    # 6. 외부 링크 경고
     if external_links:
         st.warning("📎 PDF 내부에 외부 링크가 포함되어 있습니다:")
         for uri in external_links:
