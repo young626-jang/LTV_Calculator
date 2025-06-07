@@ -18,7 +18,7 @@ from history_manager import (
     load_customer_input,
     cleanup_old_history,
     search_customers_by_keyword
-    # 🔴 ARCHIVE_FILE 제거! 더 이상 필요 없음
+    # ARCHIVE_FILE is required for downloading deleted history
 )
 
 # ─────────────────────────────
